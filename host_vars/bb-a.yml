@@ -93,6 +93,7 @@ gretunnel_configures:
         scope: local
 
 bird:
+  kernel_table: 42
   router_id: 5.145.135.141
   ospf:
     name: IGP

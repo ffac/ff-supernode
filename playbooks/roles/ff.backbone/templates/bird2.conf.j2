@@ -1,0 +1,85 @@
+# Configure logging
+log syslog all;
+router id {{ bird.router_id }};
+debug protocols all;
+
+protocol device {
+    scan time 8;
+}
+
+protocol direct {
+    interface "*";
+    #disabled;      # Disable by default
+    ipv4;           # Connect to default IPv4 table
+    ipv6;           # ... and to default IPv6 table
+}
+
+filter reject_internal_prefixes_v4 {
+    if net ~ [{{ internal_prefixes | join(", ") }}] then reject;
+    accept;
+}
+
+filter accept_public_prefix_v4 {
+    if net ~ [{{ public_prefix }}] then accept;
+    reject;
+}
+
+protocol kernel {
+    ipv4 {          # Connect protocol to IPv4 table by channel
+        export filter reject_internal_prefixes_v4;
+        export filter { 
+            krt_prefsrc={{ bird.public_ip }};
+            accept; 
+        };
+    };
+}
+
+# Another instance for IPv6, skipping default options
+protocol kernel {
+    ipv6 { export all; };
+}
+
+# OSPF example, both OSPFv2 and OSPFv3 are supported
+protocol ospf v2 IGP {
+    ipv4 {
+        import all;
+        #export where source = RTS_INHERIT;
+        export filter reject_internal_prefixes_v4;
+        export filter accept_public_prefix_v4;
+    };
+{% for area in bird.ospf.area %}
+    area {{ area.id }} {
+{% for interface in area.interfaces %}
+        interface "{{ interface.name }}" {
+{% if interface.cost is defined %}
+            cost {{ interface.cost }};
+{% endif %}
+{% if interface.stub is defined and interface.stub %}
+            stub yes;
+{% endif %}
+{% if interface.type is defined %}
+            type {{interface.type }};
+{% endif %}
+{% if interface.hello is defined %}
+            hello {{interface.hello }};
+{% endif %}
+{% if interface.retransmit is defined %}
+            retransmit {{interface.retransmit }};
+{% endif %}
+{% if interface.wait is defined %}
+            wait {{interface.wait }};
+{% endif %}
+{% if interface.dead is defined %}
+            dead {{interface.dead }};
+{% endif %}
+{% if interface.check is defined %}
+            check {{interface.check }};
+{% endif %}
+{% if interface.authentication is defined %}
+            authentication {{interface.authentication }};
+{% endif %}
+        };
+{% endfor %}
+    };
+{% endfor %}
+}

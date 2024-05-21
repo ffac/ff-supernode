@@ -1,0 +1,37 @@
+---
+servername: bgp-test
+
+# cloud-init config
+networkd_configures:
+  - iface: eth1
+    addresses:
+      - 100.64.17.157/24
+  - iface: eth0
+    addresses:
+      - 2a00:fe0:43::157/64
+    gateway6: 2a00:fe0:43::1
+    dns_server:
+      - 9.9.9.9
+      - '2a03:2260:3006::53'
+  - iface: lo
+    addresses:
+      - 185.66.193.46/32
+
+bird:
+  router_id: 100.64.17.157
+  public_ip: 185.66.193.46
+  ospf:
+    name: IGP
+    area:
+      - id: 0
+        interfaces:
+          - name: lo
+            stub: yes
+          - name: eth1
+            cost: 10
+            hello: 5
+            retransmit: 2
+            wait: 10
+            dead: 20
+            check: link
+            authentication: "none"

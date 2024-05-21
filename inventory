@@ -23,6 +23,10 @@ all:
       ansible_host: 2a00:fe0:43::bb:2
       ansible_user: root
 
+    bgp-test:
+      ansible_host: 2a00:fe0:43::157
+      ansible_user: ffac
+
 supernodes:
   hosts:
     sn01:
@@ -32,7 +36,13 @@ monitoring:
   hosts:
     monitor:
 
+bgp_clients:
+  hosts:
+    bgp-test:
+
 backbone:
   hosts:
     bb-a:
     bb-b:
+  children:
+    bgp_clients:

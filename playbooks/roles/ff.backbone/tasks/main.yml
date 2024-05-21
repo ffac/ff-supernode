@@ -14,15 +14,15 @@
 - name: Install Bird Conf
   register: restartbird
   template:
-    src: bird.conf.j2
+    src: bird2.conf.j2
     dest: /etc/bird/bird.conf
 
-- name: Install Bird Peerings
-  register: restartbird
-  template:
-    src: ebgp.conf.j2
-    dest: /etc/bird/ebgp.conf
+- name: Bird Check
+  command: birdc configure check
+  register: bird_health
+  failed_when: bird_health.rc != 0
+  changed_when: false
 
-- name: Restart bird gracefully
-  shell: birdc graceful restart
-  when: restartbird
+- name: Reload Bird Configuration
+  command: birdc configure
+  when: restartbird.changed
