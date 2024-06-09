@@ -66,22 +66,28 @@
   template:
     src: 1x-iface.network.j2
     dest: /etc/systemd/network/10-{{ item.iface }}.network
-  loop: "{{ networkd_configures }}"
+  loop: "{{ networkd_interfaces }}"
+  loop_control:
+    loop_var: interface
 
 - name: Install iface link config
   register: restartnetworkd
   template:
     src: 1x-iface.link.j2
     dest: /etc/systemd/network/10-{{ item.iface }}.link
-  loop: "{{ networkd_configures }}"
+  loop: "{{ networkd_interfaces }}"
+  loop_control:
+    loop_var: interface
   when: item.fixed_mac | default(false)
 
 - name: Remove fixed mac config
   register: restartnetworkd
   file:
-    path: "/etc/systemd/network/10-{{ item.iface }}.link"
+    path: "/etc/systemd/network/10-{{ interface.name }}.link"
     state: "absent"
-  loop: "{{ networkd_configures }}"
+  loop: "{{ networkd_interfaces }}"
+  loop_control:
+    loop_var: interface
   when: not item.fixed_mac | default(true)
 
 - name: Directly restart networkd

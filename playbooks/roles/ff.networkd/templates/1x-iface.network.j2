@@ -1,33 +1,33 @@
 [Match]
-Name={{ item.iface }}
+Name={{ interface.name }}
 
 [Network]
-{% if item.addresses is defined %}
-{% for addr in item.addresses %}
+{% if interface.addresses is defined %}
+{% for addr in interface.addresses %}
 Address={{ addr }}
 {% endfor %}
 {% endif %}
-{% if item.gateway4 is defined %}
-Gateway={{ item.gateway4 }}
+{% if interface.gateway4 is defined %}
+Gateway={{ interface.gateway4 }}
 {% endif %}
-{% if item.gateway6 is defined %}
-Gateway={{ item.gateway6 }}
+{% if interface.gateway6 is defined %}
+Gateway={{ interface.gateway6 }}
 {% endif %}
-{% if item.dns_server is defined %}
-{% for dns_server in item.dns_server %}
+{% if interface.dns_server is defined %}
+{% for dns_server in interface.dns_server %}
 DNS={{ dns_server }}
 {% endfor %}
 {% endif %}
 Domains={{ dns_searchdomains | default('.local') }}
-{% if item.dhcp is defined and item.dhcp %}
+{% if interface.dhcp is defined and interface.dhcp %}
 DHCP=ipv4
 {% endif %}
-{% if item.no_radv_accept is defined and item.no_radv_accept %}
+{% if interface.no_radv_accept is defined and interface.no_radv_accept %}
 IPv6AcceptRouterAdvertisements=false
 {% endif %}
 {% if networkd_vlans is defined %}
 {% for vlan in networkd_vlans %}
-{% if vlan.iface == item.iface %}
+{% if vlan.iface == interface.name %}
 VLAN=vlan{{ vlan.id }}
 {% endif %}
 {% endfor %}
@@ -37,16 +37,16 @@ VLAN=vlan{{ vlan.id }}
 VXLAN=vx-{{ domain.id }}-server
 {% endfor %}
 {% endif %}
-{% if item.dhcp is defined and item.dhcp %}
+{% if interface.dhcp is defined and interface.dhcp %}
 [DHCPv4]
 UseDNS=true
 UseDomains=false
 {% endif %}
-{% if item.macaddress is defined %}
+{% if interface.macaddress is defined %}
 [Link]
-MACAddress={{ item.macaddress }}
+MACAddress={{ interface.macaddress }}
 {% endif %}
-{% for route in item.static_routes | default([]) %}
+{% for route in interface.static_routes | default([]) %}
 [Route]
 {% if route.gw is defined %}
 Gateway={{ route.gw }}
@@ -66,7 +66,11 @@ PreferredSource={{ route.pref_src }}
 {% endif %}
 {% endfor %}
 
-{% if item.additional_config is defined -%}
-{{ item.additional_config }}
+{% if interface.routing_policies is defined %}
+{% for policy_rule in routing_policies %}
+[RoutingPolicyRule]
+From={{ policy_rule.from }}
+Table={{ policy_rule.table }}
+{% endfor %}
 {% endif %}
 
