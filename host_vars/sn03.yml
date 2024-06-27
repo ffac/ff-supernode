@@ -1,0 +1,128 @@
+---
+servername: sn03
+sn: 01
+
+# cloud-init config
+networkd_configures:
+  - iface: eth0
+    fixed_mac: bc:24:11:cb:d3:58
+    addresses:
+      - 5.145.135.153/27
+      - 2a00:fe0:43::203/64
+    gateway4: 5.145.135.129
+    gateway6: 2a00:fe0:43::1
+    dns_server:
+      - 9.9.9.9
+      - '2a03:2260:3006::53'
+    nat4: False
+    nat6: False
+    additional_config: |
+      [RoutingPolicyRule]
+      From=2a03:2260:3006:100::/56
+      Table=42
+
+      [RoutingPolicyRule]
+      From=2a03:2260:3006:200::/56
+      Table=42
+
+      [RoutingPolicyRule]
+      From=2a03:2260:3006:300::/56
+      Table=42
+
+      [RoutingPolicyRule]
+      From=185.66.193.45/32
+      Table=42
+
+      [RoutingPolicyRule]
+      From=10.0.0.0/11
+      Table=42
+  - iface: ens19
+    addresses:
+      - 100.64.17.153/24
+client_dns_server_v4: 5.145.135.158
+client_dns_server_v6: 2a00:fe0:43::158
+
+# ffrl prefix
+mesh_prefix: "2a03:2260:3006"
+radv_announce_default: true
+
+#local_vxlan_supernode: 2a00:fe0:43::201
+#remote_vxlan_supernode: 2a00:fe0:43::202
+yanic_central: "true"
+
+bird:
+  router_id: 5.145.135.153
+  kernel:
+    table: 42
+    exports:
+      - "filter filter_kernel_v4"
+  kernel6:
+    table: 42
+    exports:
+      - "filter filter_kernel_v6"
+  ospf:
+    name: IGP
+    imports:
+      - "all"
+    exports:
+      - "filter reject_internal_prefixes_v4"
+      - "filter accept_public_prefix_v4"
+    area:
+      - id: 0
+        interfaces:
+          - name: lo
+            stub: yes
+          - name: ens19
+            cost: 10
+            hello: 5
+            retransmit: 2
+            wait: 10
+            dead: 20
+            check: link
+            authentication: "none"
+  ospf6:
+    name: IGP6
+    imports:
+      - "all"
+    exports:
+      - "filter reject_internal_prefixes_v6"
+      - "filter accept_public_prefix_v6"
+    area:
+      - id: 0
+        interfaces:
+          - name: lo
+            stub: yes
+          - name: ens19
+            cost: 10
+            hello: 5
+            retransmit: 2
+            wait: 10
+            dead: 20
+            check: link
+            authentication: "none"
+  filter:
+    - name: reject_internal_prefixes_v4
+      blacklist: no
+      rules:
+        - "if net ~ [100.64.17.0/24+, 5.145.135.128/27+, 10.0.0.0/8+] then reject;"
+    - name: accept_public_prefix_v4
+      blacklist: yes
+      rules:
+        - "if net ~ [185.193.64.40/29+] then accept;"
+    - name: reject_internal_prefixes_v6
+      blacklist: no
+      rules:
+        - "if net ~ [2a00:fe0:43::/48+, 2a03:2260:3006:300::/56] then reject;"
+    - name: accept_public_prefix_v6
+      blacklist: yes
+      rules:
+        - "if net ~ [2a03:2260:3006::/48+] then accept;"
+    - name: filter_kernel_v4
+      blacklist: no
+      rules:
+        - "if net ~ [100.64.17.0/24+, 5.145.135.128/27+, 10.0.0.0/8+] then reject;"
+        - "krt_prefsrc=185.66.193.45;"
+    - name: filter_kernel_v6
+      blacklist: no
+      rules:
+        - "if net ~ [2a00:fe0:43::/48+, 2a03:2260:3006:300::/56{56,64}] then reject;"
