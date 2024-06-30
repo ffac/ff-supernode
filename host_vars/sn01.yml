@@ -3,8 +3,8 @@ servername: sn01
 sn: 01
 
 # cloud-init config
-networkd_configures:
-  - iface: eth0
+networkd_interfaces:
+  - name: eth0
     fixed_mac: 5a:d3:2c:f9:92:15
     addresses:
       - 5.145.135.151/27
