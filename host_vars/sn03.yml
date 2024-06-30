@@ -4,6 +4,10 @@ sn: 01
 
 # cloud-init config
 networkd_interfaces:
+  - name: lo
+    addresses:
+      - 185.66.193.45/32
+      - 2a03:2260:3006:300::/56
   - name: eth0
     fixed_mac: bc:24:11:cb:d3:58
     addresses:
@@ -13,8 +17,8 @@ networkd_interfaces:
     gateway6: 2a00:fe0:43::1
     dns_server:
       - 9.9.9.9
-      - '2a03:2260:3006::53'
-    nat4: True
+      - "2a03:2260:3006::53"
+    nat4: False
     nat6: False
     routing_policies:
       - from: "2a03:2260:3006:100::/56"
@@ -34,77 +38,82 @@ networkd_interfaces:
 bird:
   router_id: 5.145.135.153
   kernel:
-    table: 42
-    exports:
-      - "filter filter_kernel_v4"
-  kernel6:
-    table: 42
-    exports:
-      - "filter filter_kernel_v6"
+    - is_ipv6: no
+      ip_table: 42
+      exports:
+        - "filter filter_kernel_v4"
+    - is_ipv6: yes
+      ip_table: 42
+      # bird_table: auxtable
+      exports:
+        - "filter filter_kernel_v6"
   ospf:
-    name: IGP
-    imports:
-      - "all"
-    exports:
-      - "filter reject_internal_prefixes_v4"
-      - "filter accept_public_prefix_v4"
-    area:
-      - id: 0
-        interfaces:
-          - name: lo
-            stub: yes
-          - name: ens19
-            cost: 10
-            hello: 5
-            retransmit: 2
-            wait: 10
-            dead: 20
-            check: link
-            authentication: "none"
-  ospf6:
-    name: IGP6
-    imports:
-      - "all"
-    exports:
-      - "filter reject_internal_prefixes_v6"
-      - "filter accept_public_prefix_v6"
-    area:
-      - id: 0
-        interfaces:
-          - name: lo
-            stub: yes
-          - name: ens19
-            cost: 10
-            hello: 5
-            retransmit: 2
-            wait: 10
-            dead: 20
-            check: link
-            authentication: "none"
+    - version: v2
+      name: IGP
+      is_ipv6: no
+      imports:
+        - "all"
+      exports:
+        - "filter reject_internal_prefixes_v4"
+        - "filter accept_public_prefix_v4"
+      area:
+        - id: 0
+          interfaces:
+            - name: lo
+              stub: yes
+            - name: ens19
+              cost: 10
+              hello: 5
+              retransmit: 2
+              wait: 10
+              dead: 20
+              check: link
+              authentication: "none"
+    - version: v3
+      name: IGP6
+      is_ipv6: yes
+      imports:
+        - "all"
+      exports:
+        - "filter reject_internal_prefixes_v6"
+        - "filter accept_public_prefix_v6"
+      area:
+        - id: 0
+          interfaces:
+            - name: lo
+              stub: yes
+            - name: ens19
+              cost: 10
+              hello: 5
+              retransmit: 2
+              wait: 10
+              dead: 20
+              check: link
+              authentication: "none"
   filter:
     - name: reject_internal_prefixes_v4
-      blacklist: no
+      default_accept: yes
       rules:
         - "if net ~ [100.64.17.0/24+, 5.145.135.128/27+, 10.0.0.0/8+] then reject;"
     - name: accept_public_prefix_v4
-      blacklist: yes
+      default_accept: no
       rules:
         - "if net ~ [185.193.64.40/29+] then accept;"
     - name: reject_internal_prefixes_v6
-      blacklist: no
+      default_accept: yes
       rules:
         - "if net ~ [2a00:fe0:43::/48+, 2a03:2260:3006:300::/56] then reject;"
     - name: accept_public_prefix_v6
-      blacklist: yes
+      default_accept: no
       rules:
         - "if net ~ [2a03:2260:3006::/48+] then accept;"
     - name: filter_kernel_v4
-      blacklist: no
+      default_accept: yes
       rules:
         - "if net ~ [100.64.17.0/24+, 5.145.135.128/27+, 10.0.0.0/8+] then reject;"
-        - "krt_prefsrc=185.66.193.45;"
+        - "krt_prefsrc={{ public_ffrl_ipv4 }};"
     - name: filter_kernel_v6
-      blacklist: no
+      default_accept: yes
       rules:
         - "if net ~ [2a00:fe0:43::/48+, 2a03:2260:3006:300::/56{56,64}] then reject;"
 

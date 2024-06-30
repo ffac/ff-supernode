@@ -24,28 +24,64 @@ filter accept_public_prefix_v4 {
     reject;
 }
 
+{% if bird.filter is defined %}
+{% for filter in bird.filter %}
+filter {{ filter.name }} {
+    {% for rule in filter.rules %}
+    {{ rule }};
+    {% endfor%}
+    {% if filter.default_accept is defined filter.default_accept %}
+    accept;
+    {% else %}
+    reject;
+    {% endif %}
+};
+{% endfor %}
+{% endif %}
+
+{% if bird.kernel is defined %}
+{% for kernel in bird.kernel %}
 protocol kernel {
-    ipv4 {          # Connect protocol to IPv4 table by channel
-        export filter reject_internal_prefixes_v4;
-        export filter { 
-            krt_prefsrc={{ bird.public_ip }};
-            accept; 
-        };
+    {% if not kernel.is_ipv6 is defined or kernel.is_ipv6 %}ipv6 {% else %}ipv4 {% endif %}{          # Connect protocol table by channel
+{% for rule in template.imports %}
+        import {{ rule }};
+{% endfor %}
+{% for rule in template.exports %}
+        export {{ rule }};
+{% endfor %}
     };
+{% if kernel.ip_table is defined %}
+    kernel table {{ kernel.ip_table }}
+{%endif %}
+{% if kernel.bird_table is defined %}
+    table {{ kernel.bird_table }}
+{%endif %}
 }
+{% endfor %}
+{% endif %}
 
-# Another instance for IPv6, skipping default options
-protocol kernel {
-    ipv6 { export all; };
-}
+{% if bird.staticroutes is defined %}
+{% for route in bird.staticroutes %}
+protocol static {{ route.name }} {
+    import all;
+    {% for rule in route.rules %}
+    {{ rule }};
+    {% endfor %}
+};
+{% endfor %}
+{% endif %}
 
+{% if bird.ospf is defined %}
+{% for ospf in bird.ospf %}
 # OSPF example, both OSPFv2 and OSPFv3 are supported
-protocol ospf v2 IGP {
-    ipv4 {
-        import all;
-        #export where source = RTS_INHERIT;
-        export filter reject_internal_prefixes_v4;
-        export filter accept_public_prefix_v4;
+protocol ospf {{ ospf.version }} {% if ospf.name is defined %}{{ ospf.name }}{% endif %} {
+    {% if not ospf.is_ipv6 is defined or ospf.is_ipv6 %}ipv6{% else %}ipv4{% endif %} {
+{% for rule in template.imports %}
+        import {{ rule }};
+{% endfor %}
+{% for rule in template.exports %}
+        export {{ rule }};
+{% endfor %}
     };
 {% for area in bird.ospf.area %}
     area {{ area.id }} {
@@ -83,3 +119,27 @@ protocol ospf v2 IGP {
     };
 {% endfor %}
 }
+
+{% if bird.templates %}
+{% for template in bird.templates %}
+template {{ template.protocol }} {% if template.name is defined %}{{ template.name }}{% endif %} {
+    local as {{ template.as }};
+    {% for rule in template.imports %}
+    import {{ rule }};
+    {% endfor %}
+    {% for rule in template.exports %}
+    export {{ rule }};
+    {% endfor %}
+    {% if template.next_hop is defined and template.next_hop %}
+    next hop self;
+    {% endif %}
+    {% if template.multihop is defined %}
+    multihop {{ template.multihop }};
+    {% endif %}
+};
+{% endfor %}
+{% endif %}
+
+{% if bird.peerings %}
+include "/etc/bird/ebgp.conf";
+{% endif%}

@@ -117,7 +117,7 @@ bird:
         - "route 185.66.193.46/32 via 100.64.17.157"
   filter:
     - name: hostroute
-      blacklist: no
+      default_accept: no
       rules:
         - "if net ~ 185.66.193.46/32 then accept"
 
