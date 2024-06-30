@@ -10,7 +10,7 @@
       tags: [always]
   roles:
     # General
-    - { name: ff.gretunnel, tags: gretunnel, become: true }
+    - { name: ff.gretunnel, tags: gretunnel, become: true, when: gretunnel_configures is defined }
     - { name: ff.networkd, tags: networkd, become: true }
     - { name: ff.backbone, tags: backbone, become: true }
   post_tasks:
