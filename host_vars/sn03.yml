@@ -2,12 +2,14 @@
 servername: sn03
 sn: 01
 
+public_ffrl_ipv4: "185.66.193.45/32"
+public_ffrl_ipv6: "2a03:2260:3006:300::/56"
 # cloud-init config
 networkd_interfaces:
   - name: lo
     addresses:
-      - 185.66.193.45/32
-      - 2a03:2260:3006:300::/56
+      - "{{ public_ffrl_ipv4 }}"
+      - "{{ public_ffrl_ipv6 }}"
   - name: eth0
     fixed_mac: bc:24:11:cb:d3:58
     addresses:

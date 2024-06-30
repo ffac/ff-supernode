@@ -16,21 +16,17 @@ networkd_interfaces:
       - '2a03:2260:3006::53'
     nat4: True
     nat6: False
-    additional_config: |
-      [RoutingPolicyRule]
-      From=2a03:2260:3006:100::/56
-      Table=42
-
-      [RoutingPolicyRule]
-      From=2a03:2260:3006:200::/56
-      Table=42
-
-      [Route]
-      Destination=::/0
-      #Gateway=2a00:fe0:43::bb:2
-      MultiPathRoute=2a00:fe0:43::bb:1
-      MultiPathRoute=2a00:fe0:43::bb:2
-      Table=42
+    static_routes:
+      - table: 42
+        destination: "::/0"
+        multipathroutes:
+          - "2a00:fe0:43::bb:1"
+          - "2a00:fe0:43::bb:2"
+    routing_policies:
+      - from: "2a03:2260:3006:100::/56"
+        table: 42
+      - from: "2a03:2260:3006:200::/56"
+        table: 42
 
 client_dns_server_v4: 9.9.9.9
 client_dns_server_v6: 2a03:2260:3006::53

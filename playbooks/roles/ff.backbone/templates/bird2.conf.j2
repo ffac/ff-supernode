@@ -60,8 +60,7 @@ protocol kernel {
 {% endfor %}
 {% endif %}
 
-{% if bird.staticroutes is defined %}
-{% for route in bird.staticroutes %}
+{% for route in bird.staticroutes | default([]) %}
 protocol static {{ route.name }} {
     import all;
     {% for rule in route.rules %}
@@ -69,10 +68,8 @@ protocol static {{ route.name }} {
     {% endfor %}
 };
 {% endfor %}
-{% endif %}
 
-{% if bird.ospf is defined %}
-{% for ospf in bird.ospf %}
+{% for ospf in bird.ospf | default([]) %}
 # OSPF example, both OSPFv2 and OSPFv3 are supported
 protocol ospf {{ ospf.version }} {% if ospf.name is defined %}{{ ospf.name }}{% endif %} {
     {% if not ospf.is_ipv6 is defined or ospf.is_ipv6 %}ipv6{% else %}ipv4{% endif %} {
@@ -119,27 +116,26 @@ protocol ospf {{ ospf.version }} {% if ospf.name is defined %}{{ ospf.name }}{% 
     };
 {% endfor %}
 }
+{% endfor %}
 
-{% if bird.templates %}
-{% for template in bird.templates %}
+{% for template in bird.templates | default([]) %}
 template {{ template.protocol }} {% if template.name is defined %}{{ template.name }}{% endif %} {
     local as {{ template.as }};
-    {% for rule in template.imports %}
+{% for rule in template.imports | default([]) %}
     import {{ rule }};
-    {% endfor %}
-    {% for rule in template.exports %}
+{% endfor %}
+{% for rule in template.exports | default([]) %}
     export {{ rule }};
-    {% endfor %}
-    {% if template.next_hop is defined and template.next_hop %}
+{% endfor %}
+{% if template.next_hop is defined and template.next_hop %}
     next hop self;
-    {% endif %}
-    {% if template.multihop is defined %}
+{% endif %}
+{% if template.multihop is defined %}
     multihop {{ template.multihop }};
-    {% endif %}
+{% endif %}
 };
 {% endfor %}
-{% endif %}
 
 {% if bird.peerings %}
 include "/etc/bird/ebgp.conf";
-{% endif%}
+{% endif %}

@@ -65,7 +65,7 @@
   register: restartnetworkd
   template:
     src: 1x-iface.network.j2
-    dest: /etc/systemd/network/10-{{ item.iface }}.network
+    dest: /etc/systemd/network/10-{{ interface.name }}.network
   loop: "{{ networkd_interfaces }}"
   loop_control:
     loop_var: interface
@@ -74,7 +74,7 @@
   register: restartnetworkd
   template:
     src: 1x-iface.link.j2
-    dest: /etc/systemd/network/10-{{ item.iface }}.link
+    dest: /etc/systemd/network/10-{{ interface.name }}.link
   loop: "{{ networkd_interfaces }}"
   loop_control:
     loop_var: interface

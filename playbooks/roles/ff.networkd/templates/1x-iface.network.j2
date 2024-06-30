@@ -64,13 +64,13 @@ Table={{ route.table }}
 {% if route.pref_src is defined %}
 PreferredSource={{ route.pref_src }}
 {% endif %}
+{% for mpr in route.multipathroutes | default([]) %}
+MultiPathRoute={{ mpr }}
+{% endfor %}
 {% endfor %}
 
-{% if interface.routing_policies is defined %}
-{% for policy_rule in routing_policies %}
+{% for policy_rule in routing_policies | default([]) %}
 [RoutingPolicyRule]
 From={{ policy_rule.from }}
 Table={{ policy_rule.table }}
 {% endfor %}
-{% endif %}
-
