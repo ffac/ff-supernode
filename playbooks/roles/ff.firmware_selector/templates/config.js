@@ -33,9 +33,6 @@ var config = {
   // relative image paths and branch
 
   directories: {
-    '/firmware/download/from-2023.1.x/factory/': 'v2023.1',
-    '/firmware/download/from-2023.1.x/other/': 'v2023.1',
-    '/firmware/download/from-2023.1.x/sysupgrade/': 'v2023.1',
 
     '/firmware/download/from-2023.2.x/factory/': 'v2023.2',
     '/firmware/download/from-2023.2.x/other/': 'v2023.2',
@@ -50,8 +47,8 @@ var config = {
   title: 'Firmware',
   // branch descriptions shown during selection
   branch_descriptions: {
-    'v2023.1': 'oldstable - Gluon v2023.1.x basiert auf OpenWrt 22.03 - nicht für 4/32er Geräte - unterstützt updates von v2021.1 oder neuer',
-    'v2023.2': 'stable - Gluon v2023.2.x basiert auf OpenWrt 23.05 - unterstützt updates von v2023.1 oder neuer',
+    'v2023.1': 'oldstable - Gluon v2023.1.x basiert auf OpenWrt 22.03 - unterstützt Updates von v2021.1 oder neuer',
+    'v2023.2': 'stable - Gluon v2023.2.x basiert auf OpenWrt 23.05 - unterstützt Updates von v2023.1 oder neuer',
     'v2024.1': 'experimental - Gluon v2024.1.x basiert auf OpenWrt main - nicht offiziell unterstützt',
   },
   // recommended branch will be marked during selection
