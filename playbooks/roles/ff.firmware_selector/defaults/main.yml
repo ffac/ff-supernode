@@ -1,7 +1,7 @@
 ---
 
-recommended_info_link: ""
-community_prefix: "gluon-ff-"
+recommended_info_link: "https://freifunk-aachen.de/2022/11/23/ausmusterung-altgeraete/"
+community_prefix: "gluon-ffac-"
 recommended_toggle: "true"
-version_regex: /-(v?\d+\.\d+\.\d+(-\d+)?(-.+~exp\d{8})?(.*-next\d{8})?)-/
-firmware_changelog: "CHANGELOG.html"
+version_regex: /-(v?\d+\.\d+\.\d+(-\d+)?(-.+~exp\d{8})?(.*-stable)?(.*-beta)?(.*-migration)?(.*-next\d{8})?)-/
+firmware_changelog: "https://github.com/ffac/site/blob/v2023.2.x/CHANGELOG.md"
