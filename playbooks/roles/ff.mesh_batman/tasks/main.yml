@@ -1,11 +1,10 @@
 ---
-
 - name: Include 'Build from source'
   include_tasks: build_from_source.yml
   when: batman_build_from_source
 
-- name: Install batctl
-  apt: name=batctl
+- name: Install batctl from repo - switch kernel if needed
+  include_tasks: build_from_repo.yml
   when: not batman_build_from_source
 
 - name: Install autostart batman_adv on boot
@@ -13,3 +12,10 @@
 
 - name: Load batman_adv module
   modprobe: name=batman_adv state=present
+
+
+### uninstall cloud-init and install real image:
+#sudo apt install linux-image-amd64
+#sudo apt purge linux-image-*-cloud-amd64
+# update-initramfs -u
+# update-grub
