@@ -4,8 +4,8 @@
   include_tasks: build_from_source.yml
   when: batman_build_from_source
 
-- name: Install batctl
-  apt: name=batctl
+- name: Install batctl from repo - switch kernel if needed
+  include_tasks: batctl_from_repo.yml
   when: not batman_build_from_source
 
 - name: Install autostart batman_adv on boot
