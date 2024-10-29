@@ -22,7 +22,6 @@
     system: yes
 
 - name: Install yanic
-  become: true
   become_user: "{{ yanic_user }}"
   script: /usr/bin/go install {{ yanic_repo_path }}@{{ yanic_tag }}
 
