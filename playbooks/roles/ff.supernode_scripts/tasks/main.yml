@@ -1,0 +1,19 @@
+---
+
+- name: Copy check-bat.sh
+  copy:
+    src: check-bat.sh
+    dest: /home/{{ ansible_user }}/check-bat.sh
+    mode: "744"
+
+- name: Copy check.sh
+  copy:
+    src: check.sh
+    dest: /home/{{ ansible_user }}/check.sh
+    mode: "744"
+
+- name: Copy set_multicast_forceflood.sh
+  copy:
+    src: set_multicast_forceflood.sh
+    dest: /home/{{ ansible_user }}/set_multicast_forceflood.sh
+    mode: "744"
