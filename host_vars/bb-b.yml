@@ -1,79 +1,159 @@
 ---
 servername: bb-b
 
-public_ffrl_ffac_prefix: 185.66.193.40/29
-# cloud-init config
+router_id: 5.145.135.142
+public_rlx_ipv4: 5.145.135.142/27
+public_rlx_ipv6: 2a00:fe0:43::bb:2/64
 networkd_interfaces:
   - name: eth1
     addresses:
-      - 100.64.17.142/24
+      - 100.64.17.141/24
     routing_policies:
-      - from: "{{ public_ffrl_ffac_prefix }}"
+      - from: "{{ public_prefix }}"
         table: 42
   - name: eth0
     addresses:
-      - 5.145.135.142/27
-      - 2a00:fe0:43::bb:2/64
+      - "{{ public_rlx_ipv4 }}"
+      - "{{ public_rlx_ipv6 }}"
     gateway4: 5.145.135.129
     gateway6: 2a00:fe0:43::1
     dns_server:
       - 9.9.9.9
-      - '2a03:2260:3006::53'
-    additional_config: |      
-      Tunnel=bb-ber-a
-      Tunnel=bb-ber-b
-      Tunnel=bb-dus-a
-      Tunnel=bb-dus-b
-      Tunnel=bb-fra-a
-      Tunnel=bb-fra-b
-    static_routes:
-      - destination: 2a03:2260:3006:100::/56
-        gateway: 2a00:fe0:43::201
-      - destination: 2a03:2260:3006:100::/56
-        gateway: 2a00:fe0:43::201
-        table: 42
-      - destination: 2a03:2260:3006:200::/56
-        gateway: 2a00:fe0:43::202
-      - destination: 2a03:2260:3006:200::/56
-        gateway: 2a00:fe0:43::202
-        table: 42
+      - "2a03:2260:3006::53"
+    tunnels:
+      - bb-ber-a
+      - bb-ber-b
+      - bb-dus-a
+      - bb-dus-b
+      - bb-fra-a
+      - bb-fra-b
     routing_policies:
       - from: 2a03:2260:3006:100::/56
         table: 42
       - from: 2a03:2260:3006:200::/56
         table: 42
+    # additional_config: | # Add raw interface config
 
-gretunnel_configures:
+gre_tunnel:
   - netdev: bb-ber-a
     mtu_bytes: 1400
-    local_address: 5.145.135.142
+    local_address: "{{ public_rlx_ipv4 }}"
     remote_address: 185.66.195.0
     independent: yes
     ttl: 64
     networks:
-      - address: 100.64.5.231/31
-      - address: 2a03:2260:0:2f4::2/64
-      - address: fe80::591:878d/64
-        scope: local
+      - address: 100.64.5.243/31
+      - address: 2a03:2260:0:2fa::2/64
+      - address: fe80::591:878e/64
+        scope: link
+  - netdev: bb-ber-b
+    mtu_bytes: 1400
+    local_address: "{{ public_rlx_ipv4 }}"
+    remote_address: 185.66.195.1
+    independent: yes
+    ttl: 64
+    networks:
+      - address: 100.64.5.49/31
+      - address: 2a03:2260:0:2fd::2/64
+      - address: fe80::591:878e/64
+        scope: link
   - netdev: bb-dus-a
     mtu_bytes: 1400
-    local_address: 5.145.135.142
+    local_address: "{{ public_rlx_ipv4 }}"
     remote_address: 185.66.193.0
     independent: yes
     ttl: 64
     networks:
-      - address: 100.64.5.235/31
-      - address: 2a03:2260:0:2f6::2/64
-      - address: fe80::591:878d/64
-        scope: local
+      - address: 100.64.5.247/31
+      - address: 2a03:2260:0:2fc::2/64
+      - address: fe80::591:878e/64
+        scope: link
+  - netdev: bb-dus-b
+    mtu_bytes: 1400
+    local_address: "{{ public_rlx_ipv4 }}"
+    remote_address: 185.66.193.1
+    independent: yes
+    ttl: 64
+    networks:
+      - address: 100.64.5.253/31
+      - address: 2a03:2260:0:2ff::2/64
+      - address: fe80::591:878e/64
+        scope: link
   - netdev: bb-fra-a
     mtu_bytes: 1400
-    local_address: 5.145.135.142
+    local_address: "{{ public_rlx_ipv4 }}"
     remote_address: 185.66.194.0
     independent: yes
     ttl: 64
     networks:
-      - address: 100.64.5.233/31
-      - address: 2a03:2260:0:2f5::2/64
-      - address: fe80::591:878d/64
-        scope: local
+      - address: 100.64.5.253/31
+      - address: 2a03:2260:0:2fb::2/64
+      - address: fe80::591:878e/64
+        scope: link
+  - netdev: bb-fra-b
+    mtu_bytes: 1400
+    local_address: "{{ public_rlx_ipv4 }}"
+    remote_address: 185.66.194.1
+    independent: yes
+    ttl: 64
+    networks:
+      - address: 100.64.5.251/31
+      - address: 2a03:2260:0:2fe::2/64
+      - address: fe80::591:878e/64
+        scope: link
+
+peerings:
+  - name: bb_ber_a
+    protocol: bgp
+    templates:
+      - ffrl_exit
+    default_local_pref: 80
+    description: "FFRL bb-a.ak.ber"
+    neighbor: 100.64.5.230
+    remote_as: 201701
+    source_address: 100.64.5.231
+  - name: bb_ber_b
+    protocol: bgp
+    templates:
+      - ffrl_exit
+    description: "FFRL bb-b.ak.ber"
+    default_local_pref: 80
+    neighbor: 100.64.5.236
+    remote_as: 201701
+    source_address: 100.64.5.237
+  - name: bb_dus_a
+    protocol: bgp
+    templates:
+      - ffrl_exit
+    description: "FFRL bb-a.ix.dus"
+    default_local_pref: 100
+    neighbor: 100.64.5.234
+    remote_as: 201701
+    source_address: 100.64.5.235
+  - name: bb_dus_b
+    protocol: bgp
+    templates:
+      - ffrl_exit
+    description: "FFRL bb-b.ix.dus"
+    default_local_pref: 101
+    neighbor: 100.64.5.240
+    remote_as: 201701
+    source_address: 100.64.5.241
+  - name: bb_fra_a
+    protocol: bgp
+    templates:
+      - ffrl_exit
+    description: "FFRL bb-a.fra3.fra"
+    default_local_pref: 90
+    neighbor: 100.64.5.232
+    remote_as: 201701
+    source_address: 100.64.5.233
+  - name: bb_fra_b
+    protocol: bgp
+    templates:
+      - ffrl_exit
+    description: "FFRL bb-b.fra3.fra"
+    default_local_pref: 90
+    neighbor: 100.64.5.238
+    remote_as: 201701
+    source_address: 100.64.5.239

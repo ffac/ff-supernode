@@ -1,5 +1,4 @@
 ---
-
 - name: Ensure Bird2 is installed
   apt:
     name: bird2
@@ -24,6 +23,12 @@
   template:
     src: bird2.conf.j2
     dest: /etc/bird/bird.conf
+
+- name: Install Bird Peerings
+  register: restartbird
+  template:
+    src: ebgp.conf.j2
+    dest: /etc/bird/ebgp.conf
 
 - name: Bird Check
   command: birdc configure check

@@ -1,13 +1,16 @@
 ---
-
 - name: Install tunnel device configs
   template:
     src: 2x-tunnel.netdev.j2
-    dest: /etc/systemd/network/25-{{ item.netdev }}.netdev
-  loop: "{{ gretunnel_configures | default([]) }}"
+    dest: /etc/systemd/network/25-{{ tunnel.netdev }}.netdev
+  loop: "{{ gre_tunnel }}"
+  loop_control:
+    loop_var: tunnel
 
 - name: Install tunnel network configs
   template:
     src: 2x-tunnel.network.j2
-    dest: /etc/systemd/network/25-{{ item.netdev }}.link
-  loop: "{{ gretunnel_configures | default([]) }}"
+    dest: /etc/systemd/network/25-{{ tunnel.netdev }}.link
+  loop: "{{ gre_tunnel }}"
+  loop_control:
+    loop_var: tunnel

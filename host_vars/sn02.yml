@@ -2,6 +2,7 @@
 servername: sn02
 sn: 02
 
+router_id: 5.145.135.152
 public_ffrl_ipv4: "185.66.193.44/32"
 public_ffrl_ipv6: "2a03:2260:3006:200::/56"
 # cloud-init config
@@ -54,95 +55,8 @@ networkd_interfaces:
       - 100.64.17.152/24
 bat_clamp_mss: True
 
-bird:
-  router_id: 5.145.135.152
-  kernel:
-    - is_ipv6: no
-      ip_table: 42
-      exports:
-        - "filter filter_kernel_v4"
-    - is_ipv6: yes
-      ip_table: 42
-      # bird_table: auxtable
-      exports:
-        - "filter filter_kernel_v6"
-  ospf:
-    - version: v2
-      name: IGP
-      is_ipv6: no
-      imports:
-        - "all"
-      exports:
-        - "filter reject_internal_prefixes_v4"
-        - "filter accept_public_prefix_v4"
-      area:
-        - id: 0
-          interfaces:
-            - name: lo
-              stub: yes
-            - name: ens19
-              cost: 10
-              hello: 5
-              retransmit: 2
-              wait: 10
-              dead: 20
-              check: link
-              authentication: "none"
-    - version: v3
-      name: IGP6
-      is_ipv6: yes
-      imports:
-        - "all"
-      exports:
-        - "filter reject_internal_prefixes_v6"
-        - "filter accept_public_prefix_v6"
-      area:
-        - id: 0
-          interfaces:
-            - name: lo
-              stub: yes
-            - name: ens19
-              cost: 10
-              hello: 5
-              retransmit: 2
-              wait: 10
-              dead: 20
-              check: link
-              authentication: "none"
-  filter:
-    - name: reject_internal_prefixes_v4
-      default_accept: yes
-      rules:
-        - "if net ~ [100.64.17.0/24+, 5.145.135.128/27+, 10.0.0.0/8+] then reject;"
-    - name: accept_public_prefix_v4
-      default_accept: no
-      rules:
-        - "if net ~ [185.193.64.40/29+] then accept;"
-    - name: reject_internal_prefixes_v6
-      default_accept: yes
-      rules:
-        - "if net ~ [2a00:fe0:43::/48+, 2a03:2260:3006:200::/56] then reject;"
-    - name: accept_public_prefix_v6
-      default_accept: no
-      rules:
-        - "if net ~ [2a03:2260:3006::/48+] then accept;"
-    - name: filter_kernel_v4
-      default_accept: yes
-      rules:
-        - "if net ~ [100.64.17.0/24+, 5.145.135.128/27+, 10.0.0.0/8+] then reject;"
-        - "krt_prefsrc={{ public_ffrl_ipv4.split('/') | first }};"
-    - name: filter_kernel_v6
-      default_accept: yes
-      rules:
-        - "if net ~ [2a00:fe0:43::/48+, 2a03:2260:3006:200::/56{56,64}] then reject;"
-
-client_dns_server_v4: 5.145.135.158
-client_dns_server_v6: 2a00:fe0:43::158
-
-# ffrl prefix
-mesh_prefix: "2a03:2260:3006"
-radv_announce_default: true
+# client_dns_server_v4: 5.145.135.158
+# client_dns_server_v6: 2a00:fe0:43::158
 
 local_vxlan_supernode: 2a00:fe0:43::202
 remote_vxlan_supernode: 2a00:fe0:43::201
-yanic_central: "true"

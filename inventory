@@ -17,8 +17,8 @@ all:
       ansible_user: ffac
 
     bb-a:
-      ansible_host: 2a00:fe0:43::bb:1 
-      ansible_user: root
+      ansible_host: 5.145.135.143
+      ansible_user: ffac
     bb-b:
       ansible_host: 2a00:fe0:43::bb:2
       ansible_user: root

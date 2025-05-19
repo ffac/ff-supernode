@@ -28,6 +28,12 @@ filter {{ filter.name }} {
 };
 {% endfor %}
 
+{% for function in bird.functions | default([]) %}
+function {{ function.name }}() {
+    {{ function.body }}
+};
+{% endfor %}
+
 {% for kernel in bird.kernel | default([]) %}
 protocol kernel {
     {% if not kernel.is_ipv6 is defined or kernel.is_ipv6 %}ipv6 {% else %}ipv4 {% endif %}{          # Connect protocol table by channel
@@ -107,22 +113,23 @@ protocol ospf {{ ospf.version }} {% if ospf.name is defined %}{{ ospf.name }}{% 
 
 {% for template in bird.templates | default([]) %}
 template {{ template.protocol }} {% if template.name is defined %}{{ template.name }}{% endif %} {
-    local as {{ template.as }};
-{% for rule in template.imports | default([]) %}
-    import {{ rule }};
-{% endfor %}
-{% for rule in template.exports | default([]) %}
-    export {{ rule }};
-{% endfor %}
-{% if template.next_hop is defined and template.next_hop %}
-    next hop self;
-{% endif %}
+    local as {{ template.local_asn }};
 {% if template.multihop is defined %}
     multihop {{ template.multihop }};
+{% endif %}
+{% if template.v4 %}
+    ipv4 {
+{{ template.v4 | indent( width=8, first=True) }}
+    };
+{% endif %}
+{% if template.v6 %}
+    ipv6 {
+{{ template.v6 | indent( width=8, first=True) }}
+    };
 {% endif %}
 };
 {% endfor %}
 
-{% if bird.peerings is defined %}
+{% if peerings is defined %}
 include "/etc/bird/ebgp.conf";
 {% endif %}
