@@ -1,0 +1,11 @@
+---
+
+- name: update_initramfs
+  command: update-initramfs -u
+
+- name: update_grub
+  command: update-grub
+
+- name: post_reboot_tasks
+  debug:
+    msg: "System has rebooted successfully after kernel changes."
