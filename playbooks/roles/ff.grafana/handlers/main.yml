@@ -1,6 +1,15 @@
 ---
-
 - name: Restart grafana
   service:
     name: grafana-server
     state: restarted
+
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: yes
+
+- name: Restart grafana-image-renderer
+  service:
+    name: grafana-image-renderer
+    state: restarted
+

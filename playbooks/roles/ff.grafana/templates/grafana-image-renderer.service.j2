@@ -1,0 +1,32 @@
+[Unit]
+Description=Grafana Image Renderer on Podman
+Documentation=https://grafana.com/docs/grafana/latest/setup-grafana/image-rendering/#set-up-image-rendering
+Wants=podman.service
+Requires=podman.service
+
+[Service]
+TimeoutStartSec=0
+Restart=on-failure
+SyslogIdentifier=%N
+KillMode=none
+RestartSec=10s
+TimeoutStopSec=15
+
+Environment=OCI_IMAGE=docker.io/grafana/grafana-image-renderer:v5.8.1
+
+ExecStartPre=/usr/bin/podman rm -f %N
+ExecStartPre=-/usr/bin/podman pull ${OCI_IMAGE}
+ExecStart=/usr/bin/podman run --name=%N \
+	--net=host \
+	--stop-signal=SIGTERM \
+	-e SERVER_ADDR="127.0.0.1:8081" \
+	-e AUTH_TOKEN="our-very-secret-token" \
+	${OCI_IMAGE} \
+	server
+
+ExecStop=/usr/bin/podman stop %N
+
+ExecReload=/usr/bin/podman kill -s HUP %N
+
+[Install]
+WantedBy=multi-user.target

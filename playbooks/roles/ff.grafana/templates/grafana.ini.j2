@@ -396,3 +396,13 @@ skip_verify = true
 # not sure what this was for; keeping it for documentation
 [plugins]
 ;allow_loading_unsigned_plugins = true
+
+[rendering]
+; The URL is an HTTP(S) URL to the service, and its rendering endpoint.
+; By default, the path is `/render`. This can be changed with nginx or similar reverse proxies.
+server_url = http://localhost:8081/render
+
+; The token is any _one_ token configured in the renderer service.
+; If you configured multiple tokens in the service, choose one for Grafana.
+; By default, a single token is configured, with the value of `-`.
+renderer_token = our-very-secret-token

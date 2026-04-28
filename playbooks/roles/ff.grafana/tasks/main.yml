@@ -1,5 +1,4 @@
 ---
-
 - name: Install dependencies
   apt:
     update_cache: yes
@@ -8,20 +7,22 @@
     packages:
     - apt-transport-https
     - gpg
-    # required for image renderer plugin
-    - libasound2
-    - libgbm-dev
-    - libnss3
 
-- name: Add grafana repository key
-  apt_key:
-    url: https://packages.grafana.com/gpg.key
+- name: Install podman
+  apt:
+    name: podman
     state: present
+    update_cache: yes
 
-- name: Add grafana repositories
-  register: grafanarepo
-  apt_repository:
-    repo: "deb https://packages.grafana.com/oss/deb stable main"
+- name: Add Grafana repository (DEB822, with GPG key)
+  deb822_repository:
+    name: grafana
+    types: deb
+    uris: https://packages.grafana.com/oss/deb
+    suites: stable
+    components:
+      - main
+    signed_by: https://packages.grafana.com/gpg.key
 
 - name: Install grafana
   apt:
@@ -57,12 +58,12 @@
     group: "grafana"
 
 - name: ensures dashboards dir exists
-  file: 
+  file:
     path: "{{ grafana_datadir }}/provisioning/dashboards"
     state: directory
 
 - name: ensures datasources dir exists
-  file: 
+  file:
     path: "{{ grafana_datadir }}/provisioning/datasources"
     state: directory
 
@@ -86,6 +87,17 @@
     enabled: yes
     state: started
 
-- name: Install Image renderer plugin
-  raw:
-    grafana-cli plugins install grafana-image-renderer
+- name: Deploy Grafana Image Renderer systemd service
+  template:
+    src: grafana-image-renderer.service.j2
+    dest: /etc/systemd/system/grafana-image-renderer.service
+    mode: "0644"
+  notify:
+    - Reload systemd daemon
+    - Restart grafana-image-renderer
+
+- name: Ensure Grafana Image Renderer service is enabled and started
+  service:
+    name: grafana-image-renderer
+    enabled: yes
+    state: started

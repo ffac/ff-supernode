@@ -10,22 +10,22 @@
       tags: [always]
   roles:
     # General
-    - { name: ff.mesh_batman, tags: mesh_batman, become: true }
-    - { name: ff.ipforward, tags: ipforward, become: true }
-    - { name: ff.networkd, tags: networkd, become: true }
+    - { role: ff.mesh_batman, tags: mesh_batman, become: true }
+    - { role: ff.ipforward, tags: ipforward, become: true }
+    - { role: ff.networkd, tags: networkd, become: true }
     - { role: ff.backbone, tags: backbone, become: true }
-    - { name: ff.mesh_wireguard, tags: mesh_wireguard, become: true }
-    - { name: ff.mesh_wireguard_remotes_peers_git, tags: mesh_wireguard_remotes_peers_git, become: true }
-    - { name: ff.radv_server, tags: radv_server, become: true }
-    - { name: ff.kea_dhcp4_server, tags: dhcp, become: true }
-    - { name: ff.iptables, tags: iptables, become: true }
-    - { name: ff.mesh_announce, tags: mesh_announce, become: true }
-    - { name: ff.watchdog, tags: watchdog, become: true }
-    - { name: ff.yanic, tags: yanic, become: true }
-    - { name: ff.supernode_scripts, tags: supernode_scripts}
-    #- { name: ff.gw-statuspage, tags: gw_statuspage, become: true }
+    - { role: ff.mesh_wireguard, tags: mesh_wireguard, become: true }
+    - { role: ff.mesh_wireguard_remotes_peers_git, tags: mesh_wireguard_remotes_peers_git, become: true }
+    - { role: ff.radv_server, tags: radv_server, become: true }
+    - { role: ff.kea_dhcp4_server, tags: dhcp, become: true }
+    - { role: ff.iptables, tags: iptables, become: true }
+    - { role: ff.mesh_announce, tags: mesh_announce, become: true }
+    - { role: ff.watchdog, tags: watchdog, become: true }
+    - { role: ff.yanic, tags: yanic, become: true }
+    - { role: ff.supernode_scripts, tags: supernode_scripts}
+    #- { role: ff.gw-statuspage, tags: gw_statuspage, become: true }
     # Backups
-    #- { name: ff.restic, tags: restic }
+    #- { role: ff.restic, tags: restic }
   post_tasks:
     - name: "Import post_task etckeeper"
       import_tasks: "include/etckeeper_post.yml"
