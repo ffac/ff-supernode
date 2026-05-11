@@ -148,5 +148,11 @@ options {
 	tcp-clients 1000;
 	max-cache-size 350M;
 	
+	# RFC8767
+	stale-cache-enable yes;
+	stale-answer-enable yes;
+	max-stale-ttl 7d;
+	stale-answer-ttl 67s;
+	stale-refresh-time 30s;
 
 };
