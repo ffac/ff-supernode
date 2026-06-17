@@ -1,0 +1,34 @@
+---
+
+- name: Check if a cloud-init variant kernel is installed
+  shell: |
+    uname -r | grep -q "cloud"
+  register: cloud_kernel_installed
+  failed_when: false
+
+- name: Install regular linux-image-amd64 kernel if cloud-init variant is installed
+  apt:
+    name: linux-image-amd64
+    state: present
+  when: cloud_kernel_installed.rc == 0
+  notify:
+    - update_initramfs
+    - update_grub
+
+- name: Purge all cloud-init variant kernels if installed
+  apt:
+    name: "linux-image-*-cloud-amd64"
+    state: absent
+    purge: yes
+  when: cloud_kernel_installed.rc == 0
+
+- name: Reboot the server if kernel changes have been made
+  reboot:
+    msg: "Rebooting to apply new kernel"
+    pre_reboot_delay: 10
+  when: cloud_kernel_installed.rc == 0
+  notify:
+    - post_reboot_tasks
+
+- name: Install batctl from repo
+  apt: name=batctl
