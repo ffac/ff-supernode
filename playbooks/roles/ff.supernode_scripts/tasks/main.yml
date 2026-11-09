@@ -1,0 +1,11 @@
+---
+
+- name: Copy supernode helper scripts
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/home/{{ ansible_user }}/{{ item }}"
+    mode: "0744"
+  loop:
+    - check-bat.sh
+    - check.sh
+    - set_multicast_forceflood.sh
