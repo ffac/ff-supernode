@@ -13,3 +13,27 @@
 
 - name: Load batman_adv module
   modprobe: name=batman_adv state=present
+
+# Replacing the module removes all batX interfaces. Recreate them through
+# networkd and let wg_netlink rebuild its routes.
+- name: Restart networkd to recreate batman interfaces
+  systemd:
+    name: systemd-networkd
+    state: restarted
+  when: installedversion is defined and installedversion is changed
+
+- name: Check if wg_netlink service exists
+  command: systemctl cat wg_netlink.service
+  register: wg_netlink_unit
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: installedversion is defined and installedversion is changed
+
+- name: Restart wg_netlink
+  systemd:
+    name: wg_netlink
+    state: restarted
+  when:
+    - installedversion is defined and installedversion is changed
+    - wg_netlink_unit.rc == 0
