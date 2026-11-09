@@ -1,0 +1,46 @@
+---
+# Debian cloud kernels do not ship the batman-adv module, so switch to the
+# regular kernel before installing batctl from the repository.
+
+- name: Cloud kernel is running
+  debug:
+    msg: "Running a cloud kernel ({{ ansible_facts['kernel'] }}) - batman-adv is not available"
+  when: ansible_facts['kernel'] is search('cloud')
+
+- name: Fail if a kernel switch is needed but reboot is not allowed
+  fail:
+    msg: >-
+      batman-adv needs the regular kernel but {{ ansible_facts['kernel'] }} is running.
+      Set batman_allow_reboot: true to let this role switch kernels and reboot.
+  when:
+    - ansible_facts['kernel'] is search('cloud')
+    - not batman_allow_reboot
+
+- name: Install regular kernel image
+  apt:
+    name: linux-image-amd64
+    state: present
+  when: ansible_facts['kernel'] is search('cloud')
+
+- name: Reboot into the regular kernel
+  reboot:
+    msg: "Rebooting to switch from cloud kernel to regular kernel"
+    pre_reboot_delay: 10
+  when: ansible_facts['kernel'] is search('cloud')
+
+- name: Refresh kernel facts
+  setup:
+    filter: kernel
+  when: ansible_facts['kernel'] is search('cloud')
+
+- name: Purge cloud kernels
+  apt:
+    name: "linux-image-*-cloud-amd64"
+    state: absent
+    purge: true
+  when: ansible_facts['kernel'] is not search('cloud')
+
+- name: Install batctl from repo
+  apt:
+    name: batctl
+    state: present
