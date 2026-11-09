@@ -1,6 +1,7 @@
 ---
 
-- hosts: "dns"
+- name: Configure DNS servers
+  hosts: "dns"
   pre_tasks:
     - name: "Import pre_tasks: reboot-required.yml"
       ansible.builtin.import_tasks: "include/reboot-required.yml"
@@ -10,8 +11,8 @@
       tags: [always]
   roles:
     # General
-    - { name: ff.networkd, tags: networkd, become: true }
-    - { name: ff.bind, tags: bind, become: true }
+    - { role: ff.networkd, tags: networkd, become: true }
+    - { role: ff.bind, tags: bind, become: true }
   post_tasks:
     - name: "Import post_task etckeeper"
       ansible.builtin.import_tasks: "include/etckeeper_post.yml"

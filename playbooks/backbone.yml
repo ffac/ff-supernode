@@ -1,5 +1,6 @@
 ---
-- hosts: "backbone"
+- name: Configure backbone routers
+  hosts: "backbone"
   pre_tasks:
     - name: "Import pre_tasks: reboot-required.yml"
       ansible.builtin.import_tasks: "include/reboot-required.yml"

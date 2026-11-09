@@ -11,13 +11,13 @@ yanic_state_path: /var/lib/yanic/state.json
 yanic_repo_path: "github.com/FreifunkBremen/yanic"
 yanic_tag: "v1.7.2"
 yanic_influx2_enabled: false
-yanic_influx2_hostname: "http://monitor.{{ dns_searchdomains}}:8086"
+yanic_influx2_hostname: "http://monitor.{{ dns_searchdomains }}:8086"
 yanic_influx2_token: "Slt8N2QzZCuAINwi_U1EeOvafjryX46IsAIIiT4BMKNpGhYo8PsAsPZcyYvl1LJglfFmlqASKl0ervGJPgX1-A=="
 yanic_influx2_organisation_id: "freifunk"
 yanic_influx2_bucket: "freifunk"
 
 yanic_influx_enabled: false
-yanic_influx_hostname: "http://monitor.{{ dns_searchdomains}}:8086"
+yanic_influx_hostname: "http://monitor.{{ dns_searchdomains }}:8086"
 yanic_influx_database: "freifunk"
 yanic_influx_username: "freifunk"
 yanic_influx_password: "freifunk"

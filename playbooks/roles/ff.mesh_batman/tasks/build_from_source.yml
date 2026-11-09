@@ -8,7 +8,7 @@
     packages:
       - dkms
       - git
-      #- pkg-config
+      # - pkg-config
       - linux-libc-dev
       - linux-headers-{{ ansible_kernel }}
       - pkg-config
@@ -18,6 +18,7 @@
     repo: https://git.open-mesh.org/batman-adv.git
     dest: /usr/src/batman-adv-{{ batman_build_version }}/
     version: "{{ batman_build_version }}"
+    force: true
 
 - name: Get dkms status
   register: dkmsstatus
@@ -29,12 +30,9 @@
   ansible.builtin.set_fact:
     batman_in_dkms: "{{ dkmsstatus.stdout_lines | first | default('nobatman') }}"
 
-#- name: Remove from dkms
-#  command: "dkms remove batman-adv/{{ batman_build_version }} --all"
-#  when: batman_in_dkms is not match("nobatman")
-
-- name: Reset batman
-  ansible.builtin.command: "git -C /usr/src/batman-adv-{{ batman_build_version }}/ reset --hard {{ batman_build_version }}"
+# - name: Remove from dkms
+#   command: "dkms remove batman-adv/{{ batman_build_version }} --all"
+#   when: batman_in_dkms is not match("nobatman")
 
 - name: Add the dkms info to the source
   ansible.builtin.template:
@@ -51,18 +49,19 @@
   ansible.builtin.set_fact:
     batman_version_status: "{{ dkmsstatus.stdout_lines | first | default('noversion') }}"
 
-- ansible.builtin.debug:
-
+- name: Show dkms status
+  ansible.builtin.debug:
     var: batman_version_status
-- name: Add version {{ batman_build_version }} to dkms
+
+- name: Add dkms version {{ batman_build_version }}
   ansible.builtin.command: "dkms add -m batman-adv -v {{ batman_build_version }}"
   when: batman_version_status is match("noversion")
 
-- name: Build version {{ batman_build_version }} using dkms
+- name: Build dkms version {{ batman_build_version }}
   ansible.builtin.command: "dkms build -m batman-adv -v {{ batman_build_version }}"
   when: batman_version_status is not search("installed")
 
-- name: Install version {{ batman_build_version }} using dkms
+- name: Install dkms version {{ batman_build_version }}
   register: installedversion
   ansible.builtin.command: "dkms install --force -m batman-adv -v {{ batman_build_version }}"
   when: batman_version_status is not search("installed")
@@ -78,9 +77,7 @@
     repo: https://git.open-mesh.org/batctl.git
     dest: /usr/src/batctl-{{ batman_build_version }}/
     version: "{{ batman_build_version }}"
-
-- name: Reset batctl
-  ansible.builtin.command: "git -C /usr/src/batctl-{{ batman_build_version }}/ reset --hard {{ batman_build_version }}"
+    force: true
 
 - name: Build and install batctl
   ansible.builtin.shell: "cd /usr/src/batctl-{{ batman_build_version }}/ && make && make install"

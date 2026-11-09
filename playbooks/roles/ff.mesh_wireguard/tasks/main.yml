@@ -23,7 +23,7 @@
 
 - name: Domain configs (supernode)
   ansible.builtin.include_tasks: per_domain.yml
-  with_items: "{{domains}}"
+  with_items: "{{ domains }}"
   loop_control:
     loop_var: domain
   when: domains is defined

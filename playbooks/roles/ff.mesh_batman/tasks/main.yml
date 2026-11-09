@@ -27,7 +27,7 @@
   when: installedversion is defined and installedversion is changed
 
 - name: Check if wg_netlink service exists
-  ansible.builtin.command: systemctl cat wg_netlink.service
+  ansible.builtin.command: systemctl cat wg_netlink.service # noqa: command-instead-of-module
   register: wg_netlink_unit
   changed_when: false
   failed_when: false

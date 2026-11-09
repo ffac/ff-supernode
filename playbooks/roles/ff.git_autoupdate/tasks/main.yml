@@ -24,11 +24,16 @@
     group: root
     content: |
       auto ALL=(root) NOPASSWD:ALL
-      Defaults:auto	!requiretty, !logfile, !syslog
+      Defaults:auto !requiretty, !logfile, !syslog
 
 - name: Configure git
+  become: true
   become_user: auto
-  ansible.builtin.command: "git config --global pull.ff only"
+  community.general.git_config:
+    name: pull.ff
+    value: only
+    scope: global
+
 - name: Create lockfile to wait until ssh key is deployed to the git server
   ansible.builtin.file:
     path: /home/auto/wait_for_access.lock

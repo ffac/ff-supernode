@@ -32,7 +32,7 @@
       - nginx-full
       - nginx-extras
 
-- name: Create {{ freifunk_site }} user
+- name: Create user {{ freifunk_site }}
   register: createuser
   ansible.builtin.user:
     name: "{{ freifunk_site }}"

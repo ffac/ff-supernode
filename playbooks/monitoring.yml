@@ -1,6 +1,7 @@
 ---
 
-- hosts: "monitoring"
+- name: Configure monitoring
+  hosts: "monitoring"
   pre_tasks:
     - name: "Import pre_tasks: reboot-required.yml"
       ansible.builtin.import_tasks: "include/reboot-required.yml"

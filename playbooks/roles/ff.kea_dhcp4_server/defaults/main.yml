@@ -3,7 +3,7 @@
 dhcp_valid_leasetime: 600
 dhcp_rebind_timer: 300
 dhcp_renew_timer: 150
-#dhcp_domain_name: "nodes.ffac.rocks"
+# dhcp_domain_name: "nodes.ffac.rocks"
 
 # how large each supernodes dhcp range is
 # (mesh_pool_size * 255)-21 ~= supported client count per sn per segment

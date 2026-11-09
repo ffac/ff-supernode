@@ -1,6 +1,7 @@
 ---
 
-- hosts: "buildserver"
+- name: Configure build server
+  hosts: "buildserver"
   pre_tasks:
     - name: "Import pre_tasks: reboot-required.yml"
       ansible.builtin.import_tasks: "include/reboot-required.yml"
@@ -10,10 +11,10 @@
       tags: [always]
   roles:
     # General
-    - { name: ff.networkd, tags: networkd, become: true }
-    - { name: ff.certbot, tags: certbot, become: true }
-    - { name: ff.firmware_selector, tags: firmware_selector, become: true }
-    - { name: ff.buildserver, tags: buildserver, become: true }
+    - { role: ff.networkd, tags: networkd, become: true }
+    - { role: ff.certbot, tags: certbot, become: true }
+    - { role: ff.firmware_selector, tags: firmware_selector, become: true }
+    - { role: ff.buildserver, tags: buildserver, become: true }
   post_tasks:
     - name: "Import post_task etckeeper"
       ansible.builtin.import_tasks: "include/etckeeper_post.yml"

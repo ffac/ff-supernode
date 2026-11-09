@@ -1,10 +1,11 @@
 ---
 
 # taken from ssh_host_ecdsa_key.pub
+# yamllint disable-line rule:line-length
 git_autoupdate_ssh_fingerprint: "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBCZyJ0vambDgPjYouLNG7pfJ6DtKojiP/N6fvR0kqdpGQEh/oeeTGs8dOp8Z9CAxwJAK2YffNwzB6LtJK9uHvMA=
   root@git.ffh.zone"
 
 git_autoupdate_servers:
-  - "{{git_host}}"
-  - "{{ lookup('dig', '{{git_host}}./A') | regex_replace('NXDOMAIN', '# failed dns lookup for {{git_host}}/A') }}"
-  - "{{ lookup('dig', '{{git_host}}./AAAA') | regex_replace('NXDOMAIN', '# failed dns lookup for {{git_host}}/AAAA') }}"
+  - "{{ git_host }}"
+  - "{{ lookup('dig', '{{ git_host }}./A') | regex_replace('NXDOMAIN', '# failed dns lookup for {{ git_host }}/A') }}"
+  - "{{ lookup('dig', '{{ git_host }}./AAAA') | regex_replace('NXDOMAIN', '# failed dns lookup for {{ git_host }}/AAAA') }}"

@@ -1,6 +1,6 @@
 ---
 
-- name: "Create wireguard privatekey file (dom {{ domain.id }}) (DIFF REDACTED)"
+- name: "Create wireguard privatekey file (DIFF REDACTED) for dom {{ domain.id }}"
   ansible.builtin.copy:
     content: "{{ wireguard_keys['%02d' % sn][domain.id].secret }}"
     dest: /etc/wireguard/privatekey-{{ '%02d' % domain.id | int }}
@@ -8,7 +8,7 @@
     owner: "root"
     group: "systemd-network"
 
-- name: "Generate networkd wg netdev (dom {{ domain.id }}) (DIFF REDACTED)"
+- name: "Generate networkd wg netdev (DIFF REDACTED) for dom {{ domain.id }}"
   ansible.builtin.template:
     src: wireguard.netdev.j2
     dest: "/etc/systemd/network/30-{{ mesh_wireguard_iface_prefix }}-{{ domain.id }}.netdev"
