@@ -47,7 +47,7 @@
     suites: "{{ ansible_distribution_release }}"
     components: main
     architectures: amd64
-    signed_by: "https://dl.cloudsmith.io/public/isc/{{ kea_repo_series }}/gpg.63D408891D8B8D01.key"
+    signed_by: "https://dl.cloudsmith.io/public/isc/{{ kea_repo_series }}/gpg.{{ kea_repo_keys[kea_repo_series] }}.key"
 
 - name: "Update apt cache to get isc packages"
   ansible.builtin.apt:

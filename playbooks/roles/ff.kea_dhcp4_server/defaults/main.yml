@@ -13,7 +13,12 @@ mesh_pool_size: 64
 dhcp_thread_pool_size: 4
 dhcp_packet_queue_size: 64
 
-# repository series of the ISC Kea packages, e.g. kea-2-6 or kea-3-0
-kea_repo_series: kea-2-6
+# repository series of the ISC Kea packages, one of the keys below
+kea_repo_series: kea-3-2
+# every series is signed with its own key
+kea_repo_keys:
+  kea-2-6: 63D408891D8B8D01
+  kea-3-0: B16C44CD45514C3C
+  kea-3-2: 720DD962343B440F
 # present keeps the installed version, latest upgrades within the series
 kea_package_state: present
