@@ -12,3 +12,8 @@ mesh_pool_size: 64
 # kea-dhcp4 worker threads and the queue of packets waiting for them
 dhcp_thread_pool_size: 4
 dhcp_packet_queue_size: 64
+
+# repository series of the ISC Kea packages, e.g. kea-2-6 or kea-3-0
+kea_repo_series: kea-2-6
+# present keeps the installed version, latest upgrades within the series
+kea_package_state: present

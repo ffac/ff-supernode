@@ -8,29 +8,60 @@
       - client_dns_server_v4 is defined
     fail_msg: "kea_dhcp4_server needs sn, domains and client_dns_server_v4"
 
-- name: "Add ISC Kea repository key"
-  ansible.builtin.get_url:
-    url: https://dl.cloudsmith.io/public/isc/kea-2-6/gpg.63D408891D8B8D01.key
-    dest: /etc/apt/keyrings/isc-kea-cloudsmith.asc
+- name: "Install python3-debian for deb822_repository"
+  ansible.builtin.apt:
+    name: python3-debian
+    update_cache: true
+    cache_valid_time: 3600
+
+# older versions of this role added the repository as a .list file and
+# downloaded the key by hand
+- name: "Find old ISC Kea repository files"
+  ansible.builtin.find:
+    paths: /etc/apt/sources.list.d
+    patterns: "dl_cloudsmith_io_public_isc_kea_*.list"
+  register: old_kea_repositories
+
+- name: "Remove old ISC Kea repository files"
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ old_kea_repositories.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: "Remove old ISC Kea repository key"
+  ansible.builtin.file:
+    path: "/etc/apt/keyrings/{{ item }}"
+    state: absent
+  loop:
+    - isc-kea-cloudsmith.asc
+    - isc-kea-cloudsmith.asc.bak
 
 - name: "Add ISC Kea repository"
   register: "iscrepositoryadded"
-  ansible.builtin.apt_repository:
-    repo: >-
-      deb [arch=amd64 signed-by=/etc/apt/keyrings/isc-kea-cloudsmith.asc]
-      https://dl.cloudsmith.io/public/isc/kea-2-6/deb/debian
-      {{ ansible_distribution_release }} main
-    state: present
+  ansible.builtin.deb822_repository:
+    name: isc-kea
+    types: deb
+    uris: "https://dl.cloudsmith.io/public/isc/{{ kea_repo_series }}/deb/debian"
+    suites: "{{ ansible_distribution_release }}"
+    components: main
+    architectures: amd64
+    signed_by: "https://dl.cloudsmith.io/public/isc/{{ kea_repo_series }}/gpg.63D408891D8B8D01.key"
 
-- name: "Update apt chache to get isc packages"
+- name: "Update apt cache to get isc packages"
   ansible.builtin.apt:
-    update_cache: "yes"
-  when: "iscrepositoryadded is changed"
+    update_cache: true
+  when: "iscrepositoryadded is changed or old_kea_repositories.files | length > 0"
 
-- name: "Install isc-kea-dhcp4-server"
+# isc-kea-dhcp4-server is only a transitional package, the unit comes with
+# isc-kea-dhcp4. After changing kea_repo_series run once with
+# kea_package_state: latest to switch to the new series.
+- name: "Install isc-kea-dhcp4"
   register: "keainstall"
   ansible.builtin.apt:
-    name: "isc-kea-dhcp4-server"
+    name: "isc-kea-dhcp4"
+    state: "{{ kea_package_state }}"
   when: not ansible_check_mode
 
 - name: "Remove SYSV init script"
