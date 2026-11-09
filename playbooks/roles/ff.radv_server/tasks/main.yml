@@ -1,28 +1,60 @@
 ---
 
+- name: Check required variables
+  ansible.builtin.assert:
+    that:
+      - mesh_prefix is defined
+      - client_dns_server_v6 is defined
+      - domains is defined
+      - sn is defined
+    fail_msg: "radv_server needs mesh_prefix, client_dns_server_v6, domains and sn"
+
 - name: Install dependencies (radvd)
   ansible.builtin.apt:
     update_cache: true
-    name: "{{ packages }}"
-  vars:
-    packages:
-      - radvd
+    name: radvd
+
+# older versions of this role installed a copy of the packaged unit here
+- name: Remove copy of the packaged radvd unit
+  ansible.builtin.file:
+    path: /etc/systemd/system/radvd.service
+    state: absent
+  notify:
+    - Reload systemd
+    - Restart radvd
+
+- name: Create radvd unit drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/radvd.service.d
+    state: directory
+    mode: "0755"
+    owner: root
+    group: root
+
+- name: Add radvd unit drop-in
+  ansible.builtin.copy:
+    src: override.conf
+    dest: /etc/systemd/system/radvd.service.d/override.conf
+    mode: "0644"
+    owner: root
+    group: root
+  notify:
+    - Reload systemd
+    - Restart radvd
 
 - name: Generate radvd config
-  notify: Restart radvd
   ansible.builtin.template:
     src: radvd.conf.j2
     dest: /etc/radvd.conf
-
-- name: Add systemd service file
-  ansible.builtin.template:
-    src: systemd.service
-    dest: /etc/systemd/system/radvd.service
-  register: radvd_servicefile
+    mode: "0644"
+    owner: root
+    group: root
+    validate: /usr/sbin/radvd --configtest -C %s
+  notify: Reload radvd
 
 - name: Enable and start radvd
-  ansible.builtin.service:
+  ansible.builtin.systemd:
     name: radvd
     state: started
     enabled: true
-  when: radvd_servicefile.changed
+    daemon_reload: true

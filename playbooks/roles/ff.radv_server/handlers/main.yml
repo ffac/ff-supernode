@@ -1,6 +1,17 @@
 ---
 
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+# radvd withdraws the router on stop, so a restart briefly drops the default
+# route on the clients. Use reload for config changes.
+- name: Reload radvd
+  ansible.builtin.systemd:
+    name: radvd
+    state: reloaded
+
 - name: Restart radvd
-  ansible.builtin.service:
+  ansible.builtin.systemd:
     name: radvd
     state: restarted

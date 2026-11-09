@@ -1,2 +1,9 @@
 ---
 dhcp_domain_name: ""
+
+# announce this node as default router
+radv_announce_default: false
+# put the supernode number into the prefix of the domain
+radv_sn_ipv6: false
+# low, medium or high - lets clients prefer one supernode over another
+radv_default_preference: medium

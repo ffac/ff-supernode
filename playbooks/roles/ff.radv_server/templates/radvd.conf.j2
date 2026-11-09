@@ -7,6 +7,7 @@ interface bat{{ domain.id }}
 {% else %}
  AdvDefaultLifetime 0;
 {% endif %}
+ AdvDefaultPreference {{ radv_default_preference }};
  MaxRtrAdvInterval 60;
  AdvLinkMTU 1280;
  AdvRASolicitedUnicast on;
@@ -20,7 +21,7 @@ interface bat{{ domain.id }}
    AdvRouterAddr on;
  };
  route {{ mesh_prefix }}:{% if radv_sn_ipv6 %}{{sn}}{% else %}1{% endif %}{{ domain.id }}::{{ "%x" | format(sn) }}001/128 {};
- RDNSS {{ client_dns_server_v6 }} {};
+ RDNSS {{ [client_dns_server_v6] | flatten | join(" ") }} {};
 {% if dhcp_domain_name %}
  DNSSL {{dhcp_domain_name}} {};
 {% endif %}
