@@ -15,6 +15,7 @@ version_regex: /-(v?\d+\.\d+\.\d+(-\d+)?(-.+~exp\d{8})?(.*-stable)?(.*-beta)?(.*
 firmware_changelog: "https://github.com/ffac/site/blob/v2025.1.x/CHANGELOG.md"
 firmware_recommended_branch: v2025.1
 firmware_preview_pictures: "https://map.aachen.freifunk.net/pictures-png/"
+firmware_preview_pictures_ext: ".png"
 firmware_branches:
   - name: v2025.1
     dir: from-2025.1.x

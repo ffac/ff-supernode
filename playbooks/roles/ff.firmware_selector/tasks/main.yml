@@ -9,14 +9,12 @@
 
 - name: Clone firmware selector
   ansible.builtin.git:
-    repo: https://github.com/ffac/gluon-firmware-selector.git
+    repo: "{{ firmware_selector_repo }}"
     dest: /var/www/gluon-firmware-selector
-    version: develop
+    version: "{{ firmware_selector_version }}"
+    # devices.js and config.js are overwritten below, discard them before updating
+    force: true
     accept_hostkey: true
-  register: repo_clone
-  failed_when:
-    - repo_clone.failed
-    - not 'Local modifications exist in the destination' in repo_clone.msg
 
 - name: Install devices.js
   ansible.builtin.template:

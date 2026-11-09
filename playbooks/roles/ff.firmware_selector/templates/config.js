@@ -56,6 +56,8 @@ var config = {
   experimental_branches: [{% for branch in firmware_branches if branch.experimental | default(false) %}'{{ branch.name }}'{% if not loop.last %}, {% endif %}{% endfor %}],
   // path to preview pictures directory
   preview_pictures: '{{ firmware_preview_pictures }}',
+  // file extension of the preview pictures
+  preview_pictures_ext: '{{ firmware_preview_pictures_ext }}',
   // link to changelog
   changelog: '{{ firmware_changelog }}'
 };

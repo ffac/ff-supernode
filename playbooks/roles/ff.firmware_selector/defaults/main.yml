@@ -1,5 +1,9 @@
 ---
 
+# upstream selector that is cloned, devices.js and config.js are templated on top
+firmware_selector_repo: https://github.com/freifunk-gluon/gluon-firmware-selector.git
+firmware_selector_version: main
+
 recommended_info_link: ""
 community_prefix: "gluon-ff-"
 recommended_toggle: "true"
@@ -16,3 +20,4 @@ firmware_changelog: "CHANGELOG.html"
 firmware_branches: []
 firmware_recommended_branch: ""
 firmware_preview_pictures: ""
+firmware_preview_pictures_ext: ".jpg"
