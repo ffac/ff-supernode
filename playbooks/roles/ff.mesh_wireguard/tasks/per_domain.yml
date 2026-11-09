@@ -1,15 +1,15 @@
 ---
 
 - name: "Create wireguard privatekey file (dom {{ domain.id }}) (DIFF REDACTED)"
-  copy:
-    content: "{{ wireguard_keys['%02d' % sn][domain.id].secret }}" 
+  ansible.builtin.copy:
+    content: "{{ wireguard_keys['%02d' % sn][domain.id].secret }}"
     dest: /etc/wireguard/privatekey-{{ '%02d' % domain.id | int }}
-    mode: "0640" 
+    mode: "0640"
     owner: "root"
     group: "systemd-network"
 
 - name: "Generate networkd wg netdev (dom {{ domain.id }}) (DIFF REDACTED)"
-  template:
+  ansible.builtin.template:
     src: wireguard.netdev.j2
     dest: "/etc/systemd/network/30-{{ mesh_wireguard_iface_prefix }}-{{ domain.id }}.netdev"
     mode: "0644"
@@ -20,46 +20,45 @@
 ### create wireguard interfaces
 
 - name: "Generate networkd wg network (dom {{ domain.id }})"
-  template:
+  ansible.builtin.template:
     src: wireguard.conf.j2
     dest: "/etc/systemd/network/30-{{ mesh_wireguard_iface_prefix }}-{{ domain.id }}.network"
 
 ### vxlan interfaces on top of wireguard
 
 - name: "Generate networkd vxlan netdev (dom {{ domain.id }})"
-  template:
+  ansible.builtin.template:
     src: vxlan.netdev.j2
     dest: "/etc/systemd/network/30-{{ vxlan_iface_prefix }}-{{ domain.id }}.netdev"
 
 - name: "Generate networkd vxlan network (dom {{ domain.id }})"
   notify: Restart networkd
-  template:
+  ansible.builtin.template:
     src: vxlan.conf.j2
     dest: "/etc/systemd/network/30-{{ vxlan_iface_prefix }}-{{ domain.id }}.network"
-
 
 ### vxlan-server for inter server communication
 
 - name: "Generate networkd vxlan-server netdev (dom {{ domain.id }})"
-  template:
+  ansible.builtin.template:
     src: vxlan-server.netdev.j2
     dest: "/etc/systemd/network/30-{{ vxlan_iface_prefix }}-{{ domain.id }}-server.netdev"
 
 - name: "Generate networkd vxlan-server network (dom {{ domain.id }})"
   notify: Restart networkd
-  template:
+  ansible.builtin.template:
     src: vxlan-server.conf.j2
     dest: "/etc/systemd/network/30-{{ vxlan_iface_prefix }}-{{ domain.id }}-server.network"
 
 #### batman on top
 
 - name: "Generate networkd bat device (dom {{ domain.id }})"
-  template:
+  ansible.builtin.template:
     src: batman.conf.j2
     dest: "/etc/systemd/network/10-bat{{ domain.id }}.network"
   notify: Restart networkd
 
 - name: "Generate networkd batman-adv netdev"
-  template:
+  ansible.builtin.template:
     src: batman.netdev.j2
     dest: /etc/systemd/network/10-bat{{ domain.id }}.netdev

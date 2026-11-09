@@ -1,77 +1,77 @@
+---
 - name: Clone meshviewer sources
-  git:
+  ansible.builtin.git:
     repo: https://github.com/freifunk/meshviewer
-    dest: '{{ meshviewer_source_dir }}'
+    dest: "{{ meshviewer_source_dir }}"
     version: "main"
     accept_hostkey: true
   register: repo_clone
   failed_when:
-  - repo_clone.failed
-  - not 'Local modifications exist in the destination' in repo_clone.msg
+    - repo_clone.failed
+    - not 'Local modifications exist in the destination' in repo_clone.msg
 
 - name: Install dev dependencies of meshviewer
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
     name: "npm"
 
 - name: Check for package.json
   ansible.builtin.stat:
-    path: '{{ meshviewer_source_dir }}/package.json'
+    path: "{{ meshviewer_source_dir }}/package.json"
   register: packagejson
 
 - name: Create node_modules directory
-  file:
+  ansible.builtin.file:
     state: directory
-    dest: '{{ meshviewer_source_dir }}/node_modules'
+    dest: "{{ meshviewer_source_dir }}/node_modules"
 
 - name: Install meshviewer packages based on package.json with npm.
   ansible.builtin.command: npm install
   args:
-    chdir: '{{ meshviewer_source_dir }}'
+    chdir: "{{ meshviewer_source_dir }}"
   when: packagejson.stat.exists
-
 
 - name: Run npm build
   ansible.builtin.command: npm run build
   args:
-    chdir: '{{ meshviewer_source_dir }}'
+    chdir: "{{ meshviewer_source_dir }}"
   when: packagejson.stat.exists
-- name: "copy build dir"
-  copy:
-    src: '{{ meshviewer_source_dir }}/build/'
+- name: "Copy build dir"
+  ansible.builtin.copy:
+    src: "{{ meshviewer_source_dir }}/build/"
     dest: "/var/www/html/meshviewer"
-    remote_src: yes
+    remote_src: true
     owner: "yanic"
     group: "www-data"
 
-- name: "copy meshviewer config"
-  template:
+- name: "Copy meshviewer config"
+  ansible.builtin.template:
     src: "meshviewer_config.json.j2"
     dest: "/var/www/html/meshviewer/config.json"
     owner: "www-data"
     group: "www-data"
 
 - name: Clone picture sources
-  git:
+  ansible.builtin.git:
     repo: https://github.com/freifunk/device-pictures
-    dest: '{{ device_pictures_source_dir }}'
+    dest: "{{ device_pictures_source_dir }}"
     version: "main"
     accept_hostkey: true
   register: device_pictures_clone
-  
-- name: "convert device pictures"
-  raw: "cd {{ device_pictures_source_dir }} && ./conversion-script.sh && rm -r /var/www/html/pictures-* && cp -rp pictures-* /var/www/html/"
+
+- name: "Convert device pictures"
+  ansible.builtin.raw: "cd {{ device_pictures_source_dir }} && ./conversion-script.sh && rm -r /var/www/html/pictures-* && cp -rp pictures-* /var/www/html/"
   when: device_pictures_clone is changed
 
 - name: Create data directory
-  file:
+  ansible.builtin.file:
     state: directory
-    dest: '/var/www/html/meshviewer/data'
+    dest: "/var/www/html/meshviewer/data"
     owner: "yanic"
     group: "www-data"
 
-- name: "copy graveyard script"
-  template:
+- name: "Copy graveyard script"
+  ansible.builtin.template:
     src: "update-graveyard.sh"
     dest: "/var/www/html/graveyard/update-graveyard.sh"
     owner: "www-data"
@@ -79,7 +79,7 @@
 
 # TODO as user ffac
 - name: Setup cronjob for graveyard update
-  cron:
+  ansible.builtin.cron:
     name: graveyard
     user: "ffac"
     job: "cd /home/ffac && ./update-graveyard.sh"
@@ -87,7 +87,7 @@
     hour: "5"
 
 - name: Symlink meshviewer.json to graveyard.json
-  file:
+  ansible.builtin.file:
     src: /home/ffac/graveyard.json
     dest: /var/www/html/graveyard/meshviewer.json
     state: link

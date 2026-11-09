@@ -1,32 +1,32 @@
 ---
 
 - name: Add backports repository
-  apt_repository:
+  ansible.builtin.apt_repository:
     repo: deb http://deb.debian.org/debian {{ ansible_distribution_release }}-backports main
     state: present
-    update_cache: yes
+    update_cache: true
   when: 'ansible_distribution_release == "buster"'
 
 - name: Install wireguard
-  apt:
+  ansible.builtin.apt:
     name: wireguard
-    update_cache: yes
+    update_cache: true
     cache_valid_time: 3600
 
 - name: Ensure wireguard config directory
-  file:
+  ansible.builtin.file:
     path: /etc/wireguard
     state: directory
     mode: u=rwx,g=rx,o=rx
     owner: "root"
-    group: "systemd-network" 
+    group: "systemd-network"
 
 - name: Domain configs (supernode)
-  include_tasks: per_domain.yml
+  ansible.builtin.include_tasks: per_domain.yml
   with_items: "{{domains}}"
   loop_control:
     loop_var: domain
   when: domains is defined
 
 - name: Establish netlink worker
-  include_tasks: netlink.yml
+  ansible.builtin.include_tasks: netlink.yml

@@ -1,32 +1,33 @@
 ---
 
 - name: Add repo key
-  apt_key:
+  ansible.builtin.apt_key:
     url: https://repos.influxdata.com/influxdata-archive_compat.key
     state: present
 
 - name: Add influx repo
   register: influxrepositoryadded
-  apt_repository:
+  ansible.builtin.apt_repository:
     repo: "deb https://repos.influxdata.com/debian stable main"
 
 - name: Update apt chache to get influxdb packages
-  apt: update_cache=yes
+  ansible.builtin.apt:
+    update_cache: "yes"
   when: influxrepositoryadded is changed
 
 - name: Install influxdb from repo
   register: influxinstall
-  apt:
+  ansible.builtin.apt:
     name: influxdb
     state: latest
 
 - name: Ensure engine directory exists and has correct ownership
-  file:
+  ansible.builtin.file:
     state: directory
     path: "{{ influx_engine_path }}"
     owner: "influxdb"
     group: "influxdb"
-    recurse: yes
+    recurse: true
 
 # - name: Generate firewall config stanza (ferm)
 #   register: ferm_changed
@@ -36,11 +37,11 @@
 #   notify: reload ferm
 
 - name: Restart influxdb2 service
-  systemd:
+  ansible.builtin.systemd:
     name: influxdb
     state: restarted
-    daemon_reload: yes
-    enabled: yes
+    daemon_reload: true
+    enabled: true
 
 - name: Create ffac user - no auth on first install
   community.general.influxdb_user:
@@ -52,24 +53,22 @@
 
 - name: Generate config file - activate auth
   register: influx_configfile
-  template:
+  ansible.builtin.template:
     src: influxdb.conf.j2
     dest: /etc/influxdb/influxdb.conf
 
-
 - name: Restart influxdb2 service - apply auth
-  systemd:
+  ansible.builtin.systemd:
     name: influxdb
     state: restarted
-    daemon_reload: yes
-    enabled: yes
+    daemon_reload: true
+    enabled: true
   when: influx_configfile is changed
-
 
 - name: Create database using custom credentials
   community.general.influxdb_database:
-      username: "{{influxdb_username}}"
-      password: "{{influxdb_password}}"
-      database_name: "{{influxdb_database_name}}"
-      ssl: true
-      validate_certs: true
+    username: "{{ influxdb_username }}"
+    password: "{{ influxdb_password }}"
+    database_name: "{{ influxdb_database_name }}"
+    ssl: true
+    validate_certs: true

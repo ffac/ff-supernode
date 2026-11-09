@@ -1,8 +1,8 @@
 ---
 
 - name: Install buildserver dependencies
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
     name: "{{ packages }}"
   vars:
     packages:
@@ -34,27 +34,27 @@
 
 - name: Create {{ freifunk_site }} user
   register: createuser
-  user:
+  ansible.builtin.user:
     name: "{{ freifunk_site }}"
-    system: yes
-    generate_ssh_key: yes
+    system: true
+    generate_ssh_key: true
 
 - name: Clone site
   become: true
   become_user: "{{ freifunk_site }}"
-  git:
+  ansible.builtin.git:
     repo: "{{ git_addr }}/site.git"
     dest: /mnt/site
     accept_hostkey: true
   register: site
   failed_when:
-  - site.failed
-  - not 'Local modifications exist in the destination' in site.msg
+    - site.failed
+    - not 'Local modifications exist in the destination' in site.msg
 
 - name: Clone manifest
   become: true
   become_user: "{{ freifunk_site }}"
-  git:
+  ansible.builtin.git:
     repo: "{{ git_addr }}/manifest.git"
     dest: /mnt/manifest
     accept_hostkey: true
@@ -63,26 +63,25 @@
 - name: Check if buildserver key exists
   become: true
   become_user: "{{ freifunk_site }}"
-  stat:
+  ansible.builtin.stat:
     path: ~/.gluon-secret-key
   register: key_exists
 
 - name: Create Buildserver Gluon signing key
   become: true
   become_user: "{{ freifunk_site }}"
-  raw:
-    ecdsakeygen -s > ~/.gluon-secret-key
+  ansible.builtin.raw: ecdsakeygen -s > ~/.gluon-secret-key
   when: not key_exists.stat.exists
 
 - name: Ensure firmware directory
-  file:
+  ansible.builtin.file:
     path: /var/www/firmware
     state: directory
     owner: "{{ freifunk_site }}"
     group: "www-data"
 
 - name: Ensure packages directory
-  file:
+  ansible.builtin.file:
     path: /var/www/packages
     state: directory
     owner: "{{ freifunk_site }}"
@@ -91,13 +90,13 @@
 - name: "Install deploy.sh"
   become: true
   become_user: "{{ freifunk_site }}"
-  copy:
+  ansible.builtin.copy:
     src: "deploy.sh"
     dest: "/mnt/deploy.sh"
     mode: "744"
 
 - name: "Install header.html"
-  template:
+  ansible.builtin.template:
     src: "header.html"
     dest: "/var/www/header.html"
     mode: "644"
@@ -105,33 +104,32 @@
     group: "www-data"
 
 - name: Nginx sites config
-  template:
+  ansible.builtin.template:
     src: proxy.conf
     dest: /etc/nginx/sites-available/proxy.conf
   register: nginxconfig
 
 - name: Enable nginx sites config
-  file:
+  ansible.builtin.file:
     src: /etc/nginx/sites-available/proxy.conf
     dest: /etc/nginx/sites-enabled/proxy.conf
     state: link
 
 - name: Delete default config
-  file:
+  ansible.builtin.file:
     state: absent
-    path: "{{item}}"
+    path: "{{ item }}"
   loop:
     - /etc/nginx/sites-enabled/default
     - /etc/nginx/sites-available/default
 
 - name: Test nginx config
   become: true
-  raw:
-    nginx -t
+  ansible.builtin.raw: nginx -t
 
 - name: Restart Nginx
-  systemd:
+  ansible.builtin.systemd:
     name: nginx.service
     state: restarted
-    enabled: yes
+    enabled: true
   when: nginxconfig.changed

@@ -1,21 +1,21 @@
 ---
 - name: Install dependencies
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
     name: "{{ packages }}"
   vars:
     packages:
-    - apt-transport-https
-    - gpg
+      - apt-transport-https
+      - gpg
 
 - name: Install podman
-  apt:
+  ansible.builtin.apt:
     name: podman
     state: present
-    update_cache: yes
+    update_cache: true
 
 - name: Add Grafana repository (DEB822, with GPG key)
-  deb822_repository:
+  ansible.builtin.deb822_repository:
     name: grafana
     types: deb
     uris: https://packages.grafana.com/oss/deb
@@ -25,70 +25,70 @@
     signed_by: https://packages.grafana.com/gpg.key
 
 - name: Install grafana
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
     name: grafana
 
 - name: Generate grafana config
   notify: Restart grafana
-  template:
+  ansible.builtin.template:
     src: grafana.ini.j2
     dest: /etc/grafana/grafana.ini
 
 - name: Permissions on data directory
-  file:
+  ansible.builtin.file:
     state: directory
     path: "{{ grafana_datadir }}"
     owner: "grafana"
     group: "grafana"
-    recurse: yes
+    recurse: true
 
 - name: Change DATA_DIR in /etc/default/grafana-server
-  lineinfile:
+  ansible.builtin.lineinfile:
     dest: /etc/default/grafana-server
-    regexp: '^(DATA_DIR=).*'
-    line: 'DATA_DIR={{ grafana_datadir }}'
+    regexp: "^(DATA_DIR=).*"
+    line: "DATA_DIR={{ grafana_datadir }}"
     state: present
 
 - name: Install provisioning files
-  copy:
+  ansible.builtin.copy:
     src: "grafana/dashboard-definitions"
     dest: "{{ grafana_datadir }}/provisioning"
     owner: "grafana"
     group: "grafana"
 
-- name: ensures dashboards dir exists
-  file:
+- name: Ensures dashboards dir exists
+  ansible.builtin.file:
     path: "{{ grafana_datadir }}/provisioning/dashboards"
     state: directory
 
-- name: ensures datasources dir exists
-  file:
+- name: Ensures datasources dir exists
+  ansible.builtin.file:
     path: "{{ grafana_datadir }}/provisioning/datasources"
     state: directory
 
 - name: Install dashboards files
-  template:
+  ansible.builtin.template:
     src: "dashboards/dashboards.yaml"
     dest: "{{ grafana_datadir }}/provisioning/dashboards/dashboards.yaml"
     owner: "grafana"
     group: "grafana"
 
 - name: Install datasources files
-  template:
+  ansible.builtin.template:
     src: "datasources/datasources.yaml"
     dest: "{{ grafana_datadir }}/provisioning/datasources/datasources.yaml"
     owner: "grafana"
     group: "grafana"
 
 - name: Enable grafana
-  service:
+  ansible.builtin.service:
     name: grafana-server
-    enabled: yes
+    enabled: true
     state: started
 
 - name: Deploy Grafana Image Renderer systemd service
-  template:
+  ansible.builtin.template:
     src: grafana-image-renderer.service.j2
     dest: /etc/systemd/system/grafana-image-renderer.service
     mode: "0644"
@@ -97,7 +97,7 @@
     - Restart grafana-image-renderer
 
 - name: Ensure Grafana Image Renderer service is enabled and started
-  service:
+  ansible.builtin.service:
     name: grafana-image-renderer
-    enabled: yes
+    enabled: true
     state: started

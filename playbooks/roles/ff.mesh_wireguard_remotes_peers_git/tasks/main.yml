@@ -1,15 +1,15 @@
 ---
 
 - name: Ensure wireguard config directory
-  file:
+  ansible.builtin.file:
     path: /etc/wireguard
     state: directory
     mode: u=rwx,g=rx,o=rx
     owner: "root"
-    group: "systemd-network" 
+    group: "systemd-network"
 
 - name: Create the peers directory
-  file:
+  ansible.builtin.file:
     state: directory
     path: /etc/wireguard/peers-wg
     owner: auto
@@ -17,34 +17,34 @@
 - name: Clone the peers git
   become: true
   become_user: auto
-  git:
+  ansible.builtin.git:
     repo: "{{ git_addr }}/peers-wg"
     dest: /etc/wireguard/peers-wg
     accept_hostkey: true
     version: main
 
 - name: Install autoupdate peer script
-  template:
+  ansible.builtin.template:
     src: autoupdate_wg.py.j2
     dest: /home/auto/autoupdate_wg.py
-    mode:  u=rwx,g=r,o=r
+    mode: u=rwx,g=r,o=r
     owner: auto
     group: auto
 
 - name: Set git config regarding pull strategy for auto user
-  git_config:
+  community.general.git_config:
     name: pull.ff
     value: only
     scope: system
     repo: /etc/wireguard/peers-wg
 
 - name: Install cron
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
     name: "cron"
 
 - name: Install crontab for autoupdate
-  cron:
+  ansible.builtin.cron:
     name: "autoupdate wireguard peers from git"
     user: root
     minute: "*/1"

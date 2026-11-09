@@ -1,13 +1,13 @@
 ---
 
 - name: Install iptables
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
     name: "iptables"
 
 - name: "Install iptables system service file"
   notify: "systemd daemon-reload"
-  template:
+  ansible.builtin.template:
     src: "iptables.service.j2"
     dest: "/etc/systemd/system/iptables-forward.service"
     mode: "0644"
@@ -15,8 +15,8 @@
     group: "root"
 
 - name: Start and enable iptables-forward service
-  systemd:
+  ansible.builtin.systemd:
     name: iptables-forward
     state: started
-    enabled: yes
-    daemon_reload: yes
+    enabled: true
+    daemon_reload: true

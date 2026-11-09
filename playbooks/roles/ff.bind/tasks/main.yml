@@ -1,40 +1,40 @@
 ---
 
 - name: Install bind9 and bind9-dnsutils
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
     name: "{{ packages }}"
   vars:
     packages:
-    - bind9
-    - bind9-dnsutils
+      - bind9
+      - bind9-dnsutils
 
 - name: Install named.conf
-  template:
+  ansible.builtin.template:
     src: named.conf
     dest: /etc/bind/named.conf
   register: bind9options
 
 - name: Install named.conf.options
-  template:
+  ansible.builtin.template:
     src: named.conf.options
     dest: /etc/bind/named.conf.options
   register: bind9options
 
 - name: Install named.conf.local
-  template:
+  ansible.builtin.template:
     src: named.conf.local
     dest: /etc/bind/named.conf.local
   register: bind9local
 
 - name: Install named.conf.zones
-  template:
+  ansible.builtin.template:
     src: named.conf.zones
     dest: /etc/bind/named.conf.zones
   register: bind9local
 
 - name: Install zone key
-  copy:
+  ansible.builtin.copy:
     content: "{{ dns_zone_key }}"
     dest: /etc/bind/rndc.key
     mode: "0640"
@@ -42,83 +42,81 @@
     group: "bind"
 
 - name: Ensure logging folder
-  file:
+  ansible.builtin.file:
     path: /var/log/named
     state: directory
     owner: "bind"
     group: "bind"
 
-- name: enable bind9 service
-  systemd:
+- name: Enable bind9 service
+  ansible.builtin.systemd:
     name: bind9.service
-    enabled: yes
+    enabled: true
     state: started
 
-- name: update root.hints
-  get_url:
-    url: 'https://www.internic.net/domain/named.root'
-    dest: '/usr/share/dns/root.hints'
-    mode: 0644
+- name: Update root.hints
+  ansible.builtin.get_url:
+    url: "https://www.internic.net/domain/named.root"
+    dest: "/usr/share/dns/root.hints"
+    mode: "0644"
     backup: true
 
-- name: update root.hints.sig
-  get_url:
-    url: 'https://www.internic.net/domain/named.root.sig'
-    dest: '/usr/share/dns/root.hints.sig'
-    mode: 0644
+- name: Update root.hints.sig
+  ansible.builtin.get_url:
+    url: "https://www.internic.net/domain/named.root.sig"
+    dest: "/usr/share/dns/root.hints.sig"
+    mode: "0644"
     backup: true
 
 - name: Create a directory ff-icvpn
   ansible.builtin.file:
     path: /opt/ff-icvpn
     state: directory
-    mode: '0755'
+    mode: "0755"
 
 - name: Install ff-icvpn git-pull-hourly.sh
-  template:
+  ansible.builtin.template:
     src: git-pull-hourly.sh
     dest: /opt/ff-icvpn/git-pull-hourly.sh
-    mode: '0777'
+    mode: "0777"
 
-- name: icvpn-cron
+- name: Icvpn-cron
   ansible.builtin.cron:
     name: "icvpn update"
     minute: "2"
     job: "/opt/ff-icvpn/git-pull-hourly.sh"
 
-- name: icvpn-meta
+- name: Icvpn-meta
   ansible.builtin.git:
-    repo: 'https://github.com/freifunk/icvpn-meta'
+    repo: "https://github.com/freifunk/icvpn-meta"
     dest: /opt/ff-icvpn/icvpn-meta
-    update: yes
+    update: true
 
-- name: icvpn-scripts
+- name: Icvpn-scripts
   ansible.builtin.git:
-    repo: 'https://github.com/freifunk/icvpn-scripts'
+    repo: "https://github.com/freifunk/icvpn-scripts"
     dest: /opt/ff-icvpn/icvpn-scripts
-    update: yes
+    update: true
 
 - name: Install iptables.sh
-  template:
+  ansible.builtin.template:
     src: iptables.sh
     dest: /usr/local/sbin/iptables.sh
-    mode: '0755'
+    mode: "0755"
 
 - name: Install iptables.sh.service
-  template:
+  ansible.builtin.template:
     src: iptables.sh.service
     dest: /etc/systemd/system/iptables.sh.service
     notify:
       - reload systemctl
 
 - name: Enable iptables.sh.service
-  service:
+  ansible.builtin.service:
     name: iptables.sh.service
     state: started
-    enabled: yes
+    enabled: true
 
-- name: reload bind9
-  raw: /usr/sbin/rndc reload
+- name: Reload bind9
+  ansible.builtin.raw: /usr/sbin/rndc reload
   when: bind9options.changed or bind9local.changed
-
-

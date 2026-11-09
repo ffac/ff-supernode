@@ -1,31 +1,32 @@
+---
 - name: Install jq dnsutils
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
     name: "{{ packages }}"
   vars:
     packages:
-    - jq
-    - dnsutils
+      - jq
+      - dnsutils
 
 - name: Copy DNS update private key
-  raw: "echo key nodes.ffac.rocks > ~/.Knodes.ffac.rocks.secret"
+  ansible.builtin.raw: "echo key nodes.ffac.rocks > ~/.Knodes.ffac.rocks.secret"
 
 - name: "Install header.html"
-  template:
+  ansible.builtin.template:
     src: "idnaencode.py"
     dest: "/home/ffac/nsupdater/idnaencode.py"
     mode: "755"
     owner: "{{ freifunk_site }}"
 
 - name: "Install header.html"
-  template:
+  ansible.builtin.template:
     src: "update_ns.sh"
     dest: "/home/ffac/nsupdater/update_ns.sh"
     mode: "755"
     owner: "{{ freifunk_site }}"
 
 - name: Setup cronjob for renewal
-  cron:
+  ansible.builtin.cron:
     name: update-nameserver
     job: "cd /home/ffac/nsupdater && ./update_ns.sh"
     minute: "*/15"

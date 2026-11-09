@@ -1,26 +1,26 @@
 ---
 
 - name: Install python3, git
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
     cache_valid_time: 3600
     name: "{{ packages }}"
   vars:
     packages:
-    - python3
-    - python3-pip
-    - python3-requests
-    - git
+      - python3
+      - python3-pip
+      - python3-requests
+      - git
 
 - name: Create auto user
   register: createuser
-  user:
+  ansible.builtin.user:
     name: auto
-    system: yes
-    generate_ssh_key: yes
+    system: true
+    generate_ssh_key: true
 
 - name: Create the peers directory
-  file:
+  ansible.builtin.file:
     state: directory
     dest: /etc/wireguard/peers-wg
     owner: auto
@@ -28,7 +28,7 @@
 - name: Clone the peers git
   become: true
   become_user: auto
-  git:
+  ansible.builtin.git:
     repo: "{{ git_addr }}/peers-wg"
     dest: /etc/wireguard/peers-wg
     accept_hostkey: true
@@ -37,7 +37,7 @@
 - name: Clone segmenter-watchdog
   become: true
   become_user: auto
-  git:
+  ansible.builtin.git:
     repo: https://github.com/ffac/autosegmenter
     dest: /home/auto/autosegmenter
   register: updatewatchdog
@@ -45,38 +45,38 @@
 - name: Set Git Config Mail
   become: true
   become_user: auto
-  git_config:
+  community.general.git_config:
     name: user.email
     repo: /etc/wireguard/peers-wg
     scope: local
-    value: 'auto@{{ dns_searchdomains }}'
+    value: "auto@{{ dns_searchdomains }}"
 
 - name: Set Git Config User
   become: true
   become_user: auto
-  git_config:
+  community.general.git_config:
     name: user.name
     repo: /etc/wireguard/peers-wg
     scope: local
-    value: 'auto'
+    value: "auto"
 
 - name: Install watchdog_config.json
-  template:
+  ansible.builtin.template:
     src: watchdog_config.json.j2
     dest: /home/auto/autosegmenter/watchdog_config.json
     owner: auto
     group: auto
 
 - name: Install watchdog service
-  template:
+  ansible.builtin.template:
     src: ff-batman-watchdog.service.j2
     dest: /etc/systemd/system/ff-batman-watchdog.service
   register: servicefile
 
 - name: Enable watchdog service
-  systemd:
+  ansible.builtin.systemd:
     name: ff-batman-watchdog.service
     state: started
-    daemon_reload: yes
-    enabled: yes
+    daemon_reload: true
+    enabled: true
   when: servicefile is changed or updatewatchdog is changed

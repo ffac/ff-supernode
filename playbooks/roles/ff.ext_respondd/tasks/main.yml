@@ -1,41 +1,41 @@
 ---
 
 - name: Ensure python3-netifaces
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
     state: latest
     name: "{{ packages }}"
   vars:
     packages:
-      - python3-netifaces 
+      - python3-netifaces
       - ethtool
       - lsb-release
 
 - name: Clone ext-respondd sources
-  git:
+  ansible.builtin.git:
     repo: https://github.com/ffggrz/ext-respondd
     dest: /opt/ext-respondd
 
 - name: Install alias.json
-  template:
+  ansible.builtin.template:
     src: alias.json
     dest: /opt/ext-respondd/alias.json
 
 - name: Install config.json
-  template:
+  ansible.builtin.template:
     src: config.json
     dest: /opt/ext-respondd/config.json
 
 - name: Install ext-respondd service
-  template:
+  ansible.builtin.template:
     src: ext-respondd.service
     dest: /etc/systemd/system/ext-respondd.service
   register: servicefile
 
 - name: Enable ext-respondd service
-  systemd:
+  ansible.builtin.systemd:
     name: ext-respondd.service
     state: started
-    enabled: yes
-    daemon_reload: yes
+    enabled: true
+    daemon_reload: true
   when: servicefile is changed

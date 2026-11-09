@@ -1,12 +1,12 @@
 ---
 
 - name: Ensure Bird2 is installed
-  apt:
+  ansible.builtin.apt:
     name: bird2
     update_cache: true
 
 - name: Start Bird
-  service:
+  ansible.builtin.service:
     name: bird
     enabled: true
     state: started
@@ -21,16 +21,16 @@
 
 - name: Install Bird Conf
   register: restartbird
-  template:
+  ansible.builtin.template:
     src: bird2.conf.j2
     dest: /etc/bird/bird.conf
 
 - name: Bird Check
-  command: birdc configure check
+  ansible.builtin.command: birdc configure check
   register: bird_health
   failed_when: bird_health.rc != 0
   changed_when: false
 
 - name: Reload Bird Configuration
-  command: birdc configure
+  ansible.builtin.command: birdc configure
   when: restartbird.changed

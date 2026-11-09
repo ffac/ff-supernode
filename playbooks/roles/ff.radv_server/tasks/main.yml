@@ -1,28 +1,28 @@
 ---
 
 - name: Install dependencies (radvd)
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
     name: "{{ packages }}"
   vars:
     packages:
-    - radvd
+      - radvd
 
 - name: Generate radvd config
   notify: Restart radvd
-  template:
+  ansible.builtin.template:
     src: radvd.conf.j2
     dest: /etc/radvd.conf
 
 - name: Add systemd service file
-  template:
+  ansible.builtin.template:
     src: systemd.service
     dest: /etc/systemd/system/radvd.service
   register: radvd_servicefile
 
 - name: Enable and start radvd
-  service:
+  ansible.builtin.service:
     name: radvd
     state: started
-    enabled: yes
+    enabled: true
   when: radvd_servicefile.changed

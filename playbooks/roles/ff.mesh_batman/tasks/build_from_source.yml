@@ -1,32 +1,32 @@
 ---
 
 - name: Add build dependencies
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
     name: "{{ packages }}"
   vars:
     packages:
-    - dkms
-    - git
-    #- pkg-config
-    - linux-libc-dev
-    - linux-headers-{{ansible_kernel}}
-    - pkg-config
+      - dkms
+      - git
+      #- pkg-config
+      - linux-libc-dev
+      - linux-headers-{{ ansible_kernel }}
+      - pkg-config
 
 - name: Clone batman sources
-  git:
+  ansible.builtin.git:
     repo: https://git.open-mesh.org/batman-adv.git
     dest: /usr/src/batman-adv-{{ batman_build_version }}/
     version: "{{ batman_build_version }}"
 
 - name: Get dkms status
   register: dkmsstatus
-  command: "dkms status -m batman-adv"
+  ansible.builtin.command: "dkms status -m batman-adv"
   changed_when: false
-  check_mode: no
+  check_mode: false
 
 - name: Get dkms status for batman-adv
-  set_fact: 
+  ansible.builtin.set_fact:
     batman_in_dkms: "{{ dkmsstatus.stdout_lines | first | default('nobatman') }}"
 
 #- name: Remove from dkms
@@ -34,68 +34,71 @@
 #  when: batman_in_dkms is not match("nobatman")
 
 - name: Reset batman
-  command: "git -C /usr/src/batman-adv-{{ batman_build_version }}/ reset --hard {{ batman_build_version }}"
+  ansible.builtin.command: "git -C /usr/src/batman-adv-{{ batman_build_version }}/ reset --hard {{ batman_build_version }}"
 
 - name: Add the dkms info to the source
-  template:
+  ansible.builtin.template:
     src: dkms.conf.j2
     dest: /usr/src/batman-adv-{{ batman_build_version }}/dkms.conf
 
 - name: Get dkms status again
   register: dkmsstatus
-  command: "dkms status -m batman-adv -v {{ batman_build_version }}"
+  ansible.builtin.command: "dkms status -m batman-adv -v {{ batman_build_version }}"
   changed_when: false
-  check_mode: no
+  check_mode: false
 
 - name: Get dkms status for batman-adv version {{ batman_build_version }}
-  set_fact: 
+  ansible.builtin.set_fact:
     batman_version_status: "{{ dkmsstatus.stdout_lines | first | default('noversion') }}"
 
-- debug: var=batman_version_status
+- ansible.builtin.debug:
 
+    var: batman_version_status
 - name: Add version {{ batman_build_version }} to dkms
-  command: "dkms add -m batman-adv -v {{ batman_build_version }}"
+  ansible.builtin.command: "dkms add -m batman-adv -v {{ batman_build_version }}"
   when: batman_version_status is match("noversion")
 
 - name: Build version {{ batman_build_version }} using dkms
-  command: "dkms build -m batman-adv -v {{ batman_build_version }}"
+  ansible.builtin.command: "dkms build -m batman-adv -v {{ batman_build_version }}"
   when: batman_version_status is not search("installed")
 
 - name: Install version {{ batman_build_version }} using dkms
   register: installedversion
-  command: "dkms install --force -m batman-adv -v {{ batman_build_version }}"
+  ansible.builtin.command: "dkms install --force -m batman-adv -v {{ batman_build_version }}"
   when: batman_version_status is not search("installed")
 
 - name: Install dev dependencies of batctl
-  apt:
+  ansible.builtin.apt:
     pkg:
       - libnl-3-dev
       - libnl-genl-3-dev
 
 - name: Clone batctl sources
-  git:
+  ansible.builtin.git:
     repo: https://git.open-mesh.org/batctl.git
     dest: /usr/src/batctl-{{ batman_build_version }}/
     version: "{{ batman_build_version }}"
 
 - name: Reset batctl
-  command: "git -C /usr/src/batctl-{{ batman_build_version }}/ reset --hard {{ batman_build_version }}"
+  ansible.builtin.command: "git -C /usr/src/batctl-{{ batman_build_version }}/ reset --hard {{ batman_build_version }}"
 
 - name: Build and install batctl
-  shell: "cd /usr/src/batctl-{{ batman_build_version }}/ && make && make install"
+  ansible.builtin.shell: "cd /usr/src/batctl-{{ batman_build_version }}/ && make && make install"
 
 - name: Remove legacy batctl
-  apt:
+  ansible.builtin.apt:
     name: batctl
     state: absent
 
 - name: Link to binary old location to new location
-  file:
+  ansible.builtin.file:
     src: /usr/local/sbin/batctl
     dest: /usr/sbin/batctl
     state: link
 
 - name: Unload batman_adv module when installed version has changed
   # The module will be loaded by "Load batman_adv module" again
-  modprobe: name=batman_adv state=absent
+  community.general.modprobe:
+    name: batman_adv
+    state: absent
   when: installedversion is changed

@@ -1,7 +1,7 @@
 ---
 grafana_url: "https://stats.{{ dns_searchdomains }}"
 yanic_url: "./data/"
-meshviewer_source_dir: /home/{{ ansible_user }}/meshviewer #/opt/meshviewer
+meshviewer_source_dir: /home/{{ ansible_user }}/meshviewer # /opt/meshviewer
 device_pictures_source_dir: /home/{{ ansible_user }}/device-pictures
 meshviewer_geo: "[]"
 deprecation_text: ""

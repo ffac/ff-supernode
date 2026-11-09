@@ -3,10 +3,10 @@
 - hosts: "buildserver"
   pre_tasks:
     - name: "Import pre_tasks: reboot-required.yml"
-      import_tasks: "include/reboot-required.yml"
+      ansible.builtin.import_tasks: "include/reboot-required.yml"
       tags: [always]
     - name: "Import pre_task etckeeper"
-      import_tasks: "include/etckeeper_pre.yml"
+      ansible.builtin.import_tasks: "include/etckeeper_pre.yml"
       tags: [always]
   roles:
     # General
@@ -16,5 +16,5 @@
     - { name: ff.buildserver, tags: buildserver, become: true }
   post_tasks:
     - name: "Import post_task etckeeper"
-      import_tasks: "include/etckeeper_post.yml"
+      ansible.builtin.import_tasks: "include/etckeeper_post.yml"
       tags: [always]

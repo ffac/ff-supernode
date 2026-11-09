@@ -2,10 +2,10 @@
 
 - name: Daemon reload
   notify: Restart yanic
-  systemd:
-    daemon_reload: yes
+  ansible.builtin.systemd:
+    daemon_reload: true
 
 - name: Restart yanic
-  service:
+  ansible.builtin.service:
     name: yanic
     state: restarted

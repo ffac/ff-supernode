@@ -1,76 +1,76 @@
 ---
 
 - name: Install python3, git
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
     cache_valid_time: 3600
     name: "{{ packages }}"
   vars:
     packages:
-    - python3
-    - git
+      - python3
+      - git
 
 - name: Create auto user
   register: createuser
-  user:
+  ansible.builtin.user:
     name: auto
-    system: yes
-    generate_ssh_key: yes
+    system: true
+    generate_ssh_key: true
 
 - name: Create site directory
-  file:
+  ansible.builtin.file:
     state: directory
     dest: /var/cache/gw-statuspage/site
     owner: auto
-    recurse: yes
+    recurse: true
 
 - name: Clone site
   become: true
   become_user: auto
-  git:
+  ansible.builtin.git:
     repo: "{{ git_addr }}/site.git"
     dest: /var/cache/gw-statuspage/site
     accept_hostkey: true
   register: site
 
 - name: Add cron job for git pull of site
-  cron:
+  ansible.builtin.cron:
     name: "gw-statuspage site git pull"
     user: "auto"
     minute: "4,44"
     hour: "5"
     job: "cd /var/cache/gw-statuspage/site; git pull >/dev/null 2>&1"
 
-- name: add aiyions gpg-key as known gpg key to verify packages
+- name: Add aiyions gpg-key as known gpg key to verify packages
   ansible.builtin.apt_key:
     id: 961988DB578E33B3E2812463F3CD90145E0C0947
     url: https://aiyionpri.me/repo/aiyionprime.gpg
     state: present
-  register: gpg 
+  register: gpg
 
 - name: Add aiyions package-repo into sources list
-  ansible.builtin.apt_repository  :
+  ansible.builtin.apt_repository:
     repo: deb http://aiyionpri.me/repo/ ./
     state: present
     filename: aiyionprime
   register: repo
 
 - name: Update apt cache
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
   when: repo.changed or gpg.changed
 
 - name: Install or update gw-statuspage
-  apt:
+  ansible.builtin.apt:
     name: gw-statuspage
     state: latest
 
 - name: Enable systemd service
-  systemd:
+  ansible.builtin.systemd:
     name: gw-statuspage
-    enabled: yes
+    enabled: true
 
 - name: Start systemd service
-  systemd:
+  ansible.builtin.systemd:
     name: gw-statuspage
     state: started

@@ -1,51 +1,54 @@
 ---
 
 - name: Install python3, git
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
     cache_valid_time: 3600
     name: "{{ packages }}"
   vars:
     packages:
-    - python3
-    - python3-pip
-    - git
+      - python3
+      - python3-pip
+      - git
 
 - name: Create auto user
   register: createuser
-  user:
+  ansible.builtin.user:
     name: auto
-    system: yes
-    generate_ssh_key: yes
+    system: true
+    generate_ssh_key: true
 
 - name: Create the peers directory
-  file:
+  ansible.builtin.file:
     state: directory
     dest: /etc/wireguard/peers-wg
     owner: auto
 
 - name: Create lockfile to wait until ssh key is deployed to the git server
-  file: path=/home/auto/wait_for_access.lock state=touch
+  ansible.builtin.file:
+    path: /home/auto/wait_for_access.lock
+    state: touch
   when: createuser is changed
 
 - name: Wait until the ssh key is deployed to the git server and /home/auto/wait_for_access.lock is removed manually
-  wait_for: path=/home/auto/wait_for_access.lock state=absent
+  ansible.builtin.wait_for:
 
-
+    path: /home/auto/wait_for_access.lock
+    state: absent
 - name: Clone the peers git
   become: true
   become_user: auto
-  git:
+  ansible.builtin.git:
     repo: "{{ git_addr }}/peers-wg"
     dest: /etc/wireguard/peers-wg
     accept_hostkey: true
     version: main
 
 - name: Install broker script
-  template:
+  ansible.builtin.template:
     src: broker.py
     dest: /home/auto/broker.py
-    mode:  u=rwx,g=r,o=r
+    mode: u=rwx,g=r,o=r
     owner: auto
     group: auto
   register: updatebroker
@@ -54,22 +57,22 @@
   become: true
   become_user: auto
   ansible.builtin.pip:
-    name: 
+    name:
       - flask
       - gunicorn
 
 - name: Set Git Config Mail
   become: true
   become_user: auto
-  git_config:
+  community.general.git_config:
     name: user.email
     repo: /etc/wireguard/peers-wg
     scope: local
-    value: 'auto@{{ dns_searchdomains }}'
+    value: "auto@{{ dns_searchdomains }}"
 
 - name: Install ssh config
   become: true
-  template:
+  ansible.builtin.template:
     src: sshconfig.j2
     dest: /home/auto/.ssh/config
     mode: "0600"
@@ -80,22 +83,22 @@
 - name: Set Git Config User
   become: true
   become_user: auto
-  git_config:
+  community.general.git_config:
     name: user.name
     repo: /etc/wireguard/peers-wg
     scope: local
-    value: 'auto'
+    value: "auto"
 
 - name: Install broker service
-  template:
+  ansible.builtin.template:
     src: wgbroker.service.j2
     dest: /etc/systemd/system/wgbroker.service
   register: servicefile
 
 - name: Enable wgbroker service
-  systemd:
+  ansible.builtin.systemd:
     name: wgbroker.service
     state: restarted
-    daemon_reload: yes
-    enabled: yes
+    daemon_reload: true
+    enabled: true
   when: servicefile is changed or updatebroker is changed

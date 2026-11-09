@@ -1,38 +1,39 @@
 ---
 
 - name: Add repo key
-  apt_key:
+  ansible.builtin.apt_key:
     url: https://repos.influxdata.com/influxdb.key
     state: present
 
 - name: Add influx repo
   register: influxrepositoryadded
-  apt_repository:
+  ansible.builtin.apt_repository:
     repo: "deb https://repos.influxdata.com/debian {{ ansible_distribution_release }} stable"
 
 - name: Update apt chache to get influxdb packages
-  apt: update_cache=yes
+  ansible.builtin.apt:
+    update_cache: "yes"
   when: influxrepositoryadded is changed
 
 - name: Install influxdb2 from repo
   register: influxinstall
-  apt:
+  ansible.builtin.apt:
     name: influxdb2
     state: latest
 
 - name: Generate config file
   register: influx2_configfile
-  template:
+  ansible.builtin.template:
     src: influx2.config.toml.j2
     dest: /etc/influxdb/config.toml
 
 - name: Ensure engine directory exists and has correct ownership
-  file:
+  ansible.builtin.file:
     state: directory
     path: "{{ influx2_engine_path }}"
     owner: "influxdb"
     group: "influxdb"
-    recurse: yes
+    recurse: true
 
 # - name: Generate firewall config stanza (ferm)
 #   register: ferm_changed
@@ -42,13 +43,13 @@
 #   notify: reload ferm
 
 - name: Reload influxdb2 service
-  systemd:
+  ansible.builtin.systemd:
     name: influxdb
     state: restarted
-    daemon_reload: yes
-    enabled: yes
+    daemon_reload: true
+    enabled: true
   when: influx2_configfile is changed
 
-- name: setup influxdb if not done yet
-  command: influx setup -u freifunk -p freifunk -o freifunk -b freifunk -r 0 -f -t {{ influx2_token }}
+- name: Setup influxdb if not done yet
+  ansible.builtin.command: influx setup -u freifunk -p freifunk -o freifunk -b freifunk -r 0 -f -t {{ influx2_token }}
   when: influxinstall is changed

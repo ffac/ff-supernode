@@ -1,6 +1,6 @@
 ---
 
 - name: Restart networkd
-  systemd:
+  ansible.builtin.systemd:
     name: systemd-networkd
     state: restarted

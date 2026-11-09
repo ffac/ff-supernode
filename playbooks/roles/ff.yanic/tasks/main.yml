@@ -1,40 +1,40 @@
 ---
 
 - name: Ensure git
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
     name: "{{ packages }}"
   vars:
     packages:
-    - git
-    - acl
-    - rsync
+      - git
+      - acl
+      - rsync
 
 - name: Ensure golang
-  apt:
+  ansible.builtin.apt:
     name: golang
     default_release: "{{ ansible_distribution_release }}"
 
 - name: Create yanic user
-  user:
+  ansible.builtin.user:
     name: "{{ yanic_user }}"
     group: "{{ yanic_group }}"
-    system: yes
+    system: true
 
 - name: Install yanic
   become: true
   become_user: "{{ yanic_user }}"
-  script: /usr/bin/go install {{ yanic_repo_path }}@{{ yanic_tag }}
+  ansible.builtin.script: /usr/bin/go install {{ yanic_repo_path }}@{{ yanic_tag }}
 
 - name: Ensure persist directory, if needed
-  file:
+  ansible.builtin.file:
     path: "/var/lib/yanic/"
     state: directory
     owner: yanic
   when: yanic_nodes_enabled
 
 - name: Ensure nodes path, if needed
-  file:
+  ansible.builtin.file:
     path: "{{ yanic_nodes_path }}"
     state: directory
     owner: yanic
@@ -43,19 +43,19 @@
 
 - name: Configure yanic (DIFF REDACTED)
   notify: Restart yanic
-  template:
+  ansible.builtin.template:
     src: yanic.conf.j2
     dest: /etc/yanic.conf
 
 - name: Copy systemd service
   notify: Daemon reload
-  template:
+  ansible.builtin.template:
     src: yanic.service.j2
     dest: /lib/systemd/system/yanic.service
 
 - name: Enable yanic
-  systemd:
+  ansible.builtin.systemd:
     name: yanic
     state: restarted
-    enabled: yes
-    daemon_reload: yes
+    enabled: true
+    daemon_reload: true

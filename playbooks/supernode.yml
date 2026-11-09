@@ -22,10 +22,10 @@
     - { role: ff.mesh_announce, tags: mesh_announce, become: true }
     - { role: ff.watchdog, tags: watchdog, become: true }
     - { role: ff.yanic, tags: yanic, become: true }
-    - { role: ff.supernode_scripts, tags: supernode_scripts}
-    #- { role: ff.gw-statuspage, tags: gw_statuspage, become: true }
+    - { role: ff.supernode_scripts, tags: supernode_scripts }
+    # - { role: ff.gw-statuspage, tags: gw_statuspage, become: true }
     # Backups
-    #- { role: ff.restic, tags: restic }
+    # - { role: ff.restic, tags: restic }
   post_tasks:
     - name: "Import post_task etckeeper"
       import_tasks: "include/etckeeper_post.yml"

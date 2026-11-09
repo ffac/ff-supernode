@@ -1,31 +1,29 @@
 ---
 - name: Install git
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
     name: "{{ packages }}"
   vars:
     packages:
-    - git
-
+      - git
 
 - name: Clone firmware selector
-  git:
+  ansible.builtin.git:
     repo: https://github.com/ffac/gluon-firmware-selector.git
     dest: /var/www/gluon-firmware-selector
     version: develop
     accept_hostkey: true
   register: repo_clone
   failed_when:
-  - repo_clone.failed
-  - not 'Local modifications exist in the destination' in repo_clone.msg
-
+    - repo_clone.failed
+    - not 'Local modifications exist in the destination' in repo_clone.msg
 
 - name: Install devices.js
-  template:
+  ansible.builtin.template:
     src: devices.js
     dest: /var/www/gluon-firmware-selector/devices.js
 
 - name: Install config.js
-  template:
+  ansible.builtin.template:
     src: config.js
     dest: /var/www/gluon-firmware-selector/config.js

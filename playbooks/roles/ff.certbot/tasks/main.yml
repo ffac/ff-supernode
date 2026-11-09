@@ -1,32 +1,32 @@
+---
 - name: Install nginx, certbot
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
     name: "{{ packages }}"
   vars:
     packages:
-    - nginx-full
-    - python3-certbot-nginx
-    - cron
+      - nginx-full
+      - python3-certbot-nginx
+      - cron
 
 - name: Register certbot
-  shell: |
+  ansible.builtin.shell: |
     certbot -n register --agree-tos --email {{ info_mail }}
     touch /etc/letsencrypt/.registered
   args:
     creates: /etc/letsencrypt/.registered
 
 - name: Setup cronjob for renewal
-  cron:
+  ansible.builtin.cron:
     name: certbot-renewal
     job: "/bin/bash -lc '/usr/bin/certbot -q renew'"
     minute: "0"
     hour: "14"
 
-
-- name: 'Get certificate'
-  command: '/usr/bin/certbot -n --nginx -d {{ item.1 }}'
+- name: "Get certificate"
+  ansible.builtin.command: "/usr/bin/certbot -n --nginx -d {{ item.1 }}"
   args:
-    creates: '/etc/letsencrypt/live/{{ item.1 }}'
+    creates: "/etc/letsencrypt/live/{{ item.1 }}"
   ignore_errors: true
   tags:
     - nginx

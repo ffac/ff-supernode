@@ -1,57 +1,57 @@
-- name: remove other http server installs
-  apt:
+---
+- name: Remove other http server installs
+  ansible.builtin.apt:
     name: apache2
     state: absent
 
 - name: Ensure nginx
-  apt:
-    update_cache: yes
+  ansible.builtin.apt:
+    update_cache: true
     state: latest
     name: "{{ packages }}"
   vars:
     packages:
       - nginx-full
-#      - nginx-extras
+      #      - nginx-extras
       - ssl-cert
 
 - name: Nginx config
-  template:
+  ansible.builtin.template:
     src: nginx.conf
     dest: /etc/nginx/nginx.conf
   register: nginxconfig
 
 - name: Nginx sites config
-  template:
+  ansible.builtin.template:
     src: proxy.conf
     dest: /etc/nginx/sites-available/proxy.conf
   register: nginxconfig
 
 - name: Enable nginx sites config
-  file:
+  ansible.builtin.file:
     src: /etc/nginx/sites-available/proxy.conf
     dest: /etc/nginx/sites-enabled/proxy.conf
     state: link
 
 - name: Delete default config
-  file:
+  ansible.builtin.file:
     state: absent
-    path: "{{item}}"
+    path: "{{ item }}"
   loop:
     - /etc/nginx/sites-enabled/default
     - /etc/nginx/sites-available/default
 
 - name: Create Selfsigned-certs
   become: true
-  raw: make-ssl-cert generate-default-snakeoil #--force-overwrite
+  ansible.builtin.raw: make-ssl-cert generate-default-snakeoil # --force-overwrite
 
 - name: Test nginx config
   become: true
-  raw:
-    nginx -t
+  ansible.builtin.raw: nginx -t
 
 - name: Restart Nginx
-  systemd:
+  ansible.builtin.systemd:
     name: nginx.service
     state: restarted
-    enabled: yes
+    enabled: true
   when: nginxconfig.changed

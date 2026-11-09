@@ -1,29 +1,33 @@
 ---
 
 - name: Include 'Build from source'
-  include_tasks: build_from_source.yml
+  ansible.builtin.include_tasks: build_from_source.yml
   when: batman_build_from_source
 
 - name: Install batctl from repo - switch kernel if needed
-  include_tasks: batctl_from_repo.yml
+  ansible.builtin.include_tasks: batctl_from_repo.yml
   when: not batman_build_from_source
 
 - name: Install autostart batman_adv on boot
-  lineinfile: dest=/etc/modules line=batman-adv
+  ansible.builtin.lineinfile:
 
+    dest: /etc/modules
+    line: batman-adv
 - name: Load batman_adv module
-  modprobe: name=batman_adv state=present
+  community.general.modprobe:
 
-# Replacing the module removes all batX interfaces. Recreate them through
-# networkd and let wg_netlink rebuild its routes.
+    # Replacing the module removes all batX interfaces. Recreate them through
+    # networkd and let wg_netlink rebuild its routes.
+    name: batman_adv
+    state: present
 - name: Restart networkd to recreate batman interfaces
-  systemd:
+  ansible.builtin.systemd:
     name: systemd-networkd
     state: restarted
   when: installedversion is defined and installedversion is changed
 
 - name: Check if wg_netlink service exists
-  command: systemctl cat wg_netlink.service
+  ansible.builtin.command: systemctl cat wg_netlink.service
   register: wg_netlink_unit
   changed_when: false
   failed_when: false
@@ -31,7 +35,7 @@
   when: installedversion is defined and installedversion is changed
 
 - name: Restart wg_netlink
-  systemd:
+  ansible.builtin.systemd:
     name: wg_netlink
     state: restarted
   when:

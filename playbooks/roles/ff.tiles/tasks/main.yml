@@ -1,23 +1,23 @@
 ---
 
 - name: Ensure nginx
-  apt:
+  ansible.builtin.apt:
     name: nginx
-    update_cache: yes
+    update_cache: true
 
 - name: Create cache directory
-  file:
+  ansible.builtin.file:
     state: directory
     dest: /var/cache/tilecache/logs
     owner: www-data
-    recurse: yes
+    recurse: true
 
 - name: Copy Tilecache Config
-  template:
+  ansible.builtin.template:
     src: tilecache.conf.j2
     dest: /etc/nginx/sites-available/tilecache.conf
 
-- name: reload nginx
-  systemd:
+- name: Reload nginx
+  ansible.builtin.systemd:
     name: nginx
     state: "reloaded"

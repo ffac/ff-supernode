@@ -1,55 +1,54 @@
 ---
 
 - name: Ensure wireguard config directory
-  file:
+  ansible.builtin.file:
     path: /etc/wireguard
     state: directory
-    mode: "0650" 
+    mode: "0650"
     owner: "root"
-    group: "systemd-network"    
+    group: "systemd-network"
 
 - name: Place netlink config
-  template:
+  ansible.builtin.template:
     src: netlink_cfg.json.j2
     dest: /etc/wireguard/netlink_cfg.json
 
 - name: Ensure wireguard srv directory
-  file:
+  ansible.builtin.file:
     path: /srv/wireguard
     state: directory
 
 - name: Install setuptools and pyroute2
-  apt:
+  ansible.builtin.apt:
     name: "{{ packages }}"
-    update_cache: yes
+    update_cache: true
     cache_valid_time: 3600
   vars:
     packages:
-    - python3-setuptools
-    - python3-pyroute2
-
+      - python3-setuptools
+      - python3-pyroute2
 
 - name: Fetch wireguard-vxlan-glue
-  git:
-    repo: 'https://github.com/freifunkh/wireguard-vxlan-glue.git'
+  ansible.builtin.git:
+    repo: "https://github.com/freifunkh/wireguard-vxlan-glue.git"
     dest: /srv/wireguard/vxlan-glue
     version: deploy
   register: repo
 
 - name: Install wg_netlink service
-  template:
+  ansible.builtin.template:
     src: netlink.service.j2
     dest: /etc/systemd/system/wg_netlink.service
   register: servicefile
 
 - name: Reload systemd
-  systemd:
-    daemon_reload: yes
+  ansible.builtin.systemd:
+    daemon_reload: true
   when: servicefile.changed
 
 - name: Enable netlink service
-  systemd:
+  ansible.builtin.systemd:
     name: wg_netlink.service
     state: restarted
-    enabled: yes
+    enabled: true
   when: servicefile.changed or repo.changed

@@ -1,96 +1,98 @@
 ---
 
 - name: Install autostart ip_conntrack on boot
-  lineinfile: dest=/etc/modules line=ip_conntrack
+  ansible.builtin.lineinfile:
 
+    dest: /etc/modules
+    line: ip_conntrack
 - name: Load ip_conntrack module
-  modprobe: name=ip_conntrack state=present
+  community.general.modprobe:
 
+    name: ip_conntrack
+    state: present
 - name: Adjust netfilter conntrack table size
-  sysctl:
+  ansible.posix.sysctl:
     name: net.netfilter.nf_conntrack_max
-    value: "{{ firewall_conntrack_table_size|int }}"
+    value: "{{ firewall_conntrack_table_size | int }}"
     state: "{% if firewall_conntrack_table_size != -1 %}present{% else %}absent{% endif %}"
     sysctl_file: /etc/sysctl.d/20-conntrack.conf
-    reload: yes
+    reload: true
 
 - name: Maybe activate forwarding 4 as kernel parameter
-  sysctl:
+  ansible.posix.sysctl:
     name: net.ipv4.ip_forward
     value: "1"
     sysctl_file: /etc/sysctl.d/50-forwarding.conf
-    reload: yes
+    reload: true
 
 - name: Maybe activate forwarding 6 as kernel parameter
-  sysctl:
+  ansible.posix.sysctl:
     name: net.ipv6.conf.all.forwarding
     value: "1"
     sysctl_file: /etc/sysctl.d/50-forwarding.conf
-    reload: yes
+    reload: true
 
 - name: Setting the maximum number of IPv6 routes
-  sysctl:
+  ansible.posix.sysctl:
     name: net.ipv6.route.max_size
     value: "1073741824"
     sysctl_file: /etc/sysctl.d/11-ipv6-routing.conf
-    reload: yes
+    reload: true
 
 # icmp unreachable/... are correctly marked by this
-- name: fwmark reflect IPv4
-  sysctl:
+- name: Fwmark reflect IPv4
+  ansible.posix.sysctl:
     name: net.ipv4.fwmark_reflect
     value: "1"
     sysctl_file: /etc/sysctl.d/50-fwmark-reflect.conf
-    reload: yes
+    reload: true
 
 # icmp unreachable/... are correctly marked by this
-- name: fwmark reflect IPv6
-  sysctl:
+- name: Fwmark reflect IPv6
+  ansible.posix.sysctl:
     name: net.ipv6.fwmark_reflect
     value: "1"
     sysctl_file: /etc/sysctl.d/50-fwmark-reflect.conf
-    reload: yes
+    reload: true
 
-- name: neigh gc_thresh1 IPv4
-  sysctl:
+- name: Neigh gc_thresh1 IPv4
+  ansible.posix.sysctl:
     name: net.ipv4.neigh.default.gc_thresh1
     value: "32768"
     sysctl_file: /etc/sysctl.d/50-gc_thresh.conf
-    reload: yes
+    reload: true
 
-- name: neigh gc_thresh2 IPv4
-  sysctl:
+- name: Neigh gc_thresh2 IPv4
+  ansible.posix.sysctl:
     name: net.ipv4.neigh.default.gc_thresh2
     value: "65536"
     sysctl_file: /etc/sysctl.d/50-gc_thresh.conf
-    reload: yes
+    reload: true
 
-- name: neigh gc_thresh3 IPv4
-  sysctl:
+- name: Neigh gc_thresh3 IPv4
+  ansible.posix.sysctl:
     name: net.ipv4.neigh.default.gc_thresh3
     value: "131072"
     sysctl_file: /etc/sysctl.d/50-gc_thresh.conf
-    reload: yes
+    reload: true
 
-- name: neigh gc_thresh1 IPv6
-  sysctl:
+- name: Neigh gc_thresh1 IPv6
+  ansible.posix.sysctl:
     name: net.ipv6.neigh.default.gc_thresh1
     value: "32768"
     sysctl_file: /etc/sysctl.d/50-gc_thresh.conf
-    reload: yes
+    reload: true
 
-- name: neigh gc_thresh2 IPv6
-  sysctl:
+- name: Neigh gc_thresh2 IPv6
+  ansible.posix.sysctl:
     name: net.ipv6.neigh.default.gc_thresh2
     value: "65536"
     sysctl_file: /etc/sysctl.d/50-gc_thresh.conf
-    reload: yes
+    reload: true
 
-- name: neigh gc_thresh3 IPv6
-  sysctl:
+- name: Neigh gc_thresh3 IPv6
+  ansible.posix.sysctl:
     name: net.ipv6.neigh.default.gc_thresh3
     value: "131072"
     sysctl_file: /etc/sysctl.d/50-gc_thresh.conf
-    reload: yes
-
-
+    reload: true

@@ -5,15 +5,15 @@
     update_cache: true
     name: "systemd-resolved"
 
-- name: "sysctl: net.ipv6.conf.all.disable_ipv6 to 0"
-  ansible.builtin.sysctl:
+- name: "Sysctl: net.ipv6.conf.all.disable_ipv6 to 0"
+  ansible.posix.sysctl:
     name: net.ipv6.conf.all.disable_ipv6
     value: "0"
     sysctl_file: /etc/sysctl.d/10-ipv6.conf
     reload: true
 
-- name: "sysctl: net.ipv6.conf.default.disable_ipv6 to 0"
-  ansible.builtin.sysctl:
+- name: "Sysctl: net.ipv6.conf.default.disable_ipv6 to 0"
+  ansible.posix.sysctl:
     name: net.ipv6.conf.default.disable_ipv6
     value: "0"
     sysctl_file: /etc/sysctl.d/10-ipv6.conf
@@ -27,7 +27,7 @@
 
 - name: Print systemd version
   ansible.builtin.debug:
-    msg: 'Systemd version is {{ systemd_version.stdout }}'
+    msg: "Systemd version is {{ systemd_version.stdout }}"
 
 # Disabling ManageForeignRoutes is only possible in systemd 247 and above.
 - name: Ensure systemd version >= 247 for ManageForeignRoutes=no feature
@@ -59,8 +59,12 @@
 
 - name: Enable dns resolving with systemd-resolved
   register: restartresolved
-  ansible.builtin.file: src=/run/systemd/resolve/resolv.conf dest=/etc/resolv.conf state=link force=yes
+  ansible.builtin.file:
 
+    src: /run/systemd/resolve/resolv.conf
+    dest: /etc/resolv.conf
+    state: link
+    force: "yes"
 - name: Install iface configs
   register: restartnetworkd
   ansible.builtin.template:
