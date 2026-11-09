@@ -12,7 +12,17 @@ freifunk_site: "ffac"
 recommended_info_link: "https://freifunk-aachen.de/2022/11/23/ausmusterung-altgeraete/"
 version_regex: /-(v?\d+\.\d+\.\d+(-\d+)?(-.+~exp\d{8})?(.*-stable)?(.*-beta)?(.*-migration)?(.*-next\d{8})?)-/
 
-firmware_changelog: "https://github.com/ffac/site/blob/v2023.1.x/CHANGELOG.md"
+firmware_changelog: "https://github.com/ffac/site/blob/v2025.1.x/CHANGELOG.md"
+firmware_recommended_branch: v2025.1
+firmware_preview_pictures: "https://map.aachen.freifunk.net/pictures-png/"
+firmware_branches:
+  - name: v2025.1
+    dir: from-2025.1.x
+    description: "stable - Gluon v2025.1.x basiert auf OpenWrt 24.10 - unterstützt Updates von v2022.x oder neuer"
+  - name: v2026.1
+    dir: from-2026.1.x
+    description: "experimental - Gluon v2026.1.x basiert auf OpenWrt 25.12 - unterstützt Updates von v2023.1 oder neuer, mesht mit v2025.1.x und neuer"
+    experimental: true
 community_prefix: "gluon-ffac-"
 
 # meshviewer

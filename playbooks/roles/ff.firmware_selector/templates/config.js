@@ -33,33 +33,29 @@ var config = {
   // relative image paths and branch
 
   directories: {
-    '/firmware/download/from-2023.1.x/factory/': 'v2023.1',
-    '/firmware/download/from-2023.1.x/other/': 'v2023.1',
-    '/firmware/download/from-2023.1.x/sysupgrade/': 'v2023.1',
+{% for branch in firmware_branches %}
+    '/firmware/download/{{ branch.dir }}/factory/': '{{ branch.name }}',
+    '/firmware/download/{{ branch.dir }}/other/': '{{ branch.name }}',
+    '/firmware/download/{{ branch.dir }}/sysupgrade/': '{{ branch.name }}',
+{% if not loop.last %}
 
-    '/firmware/download/from-2023.2.x/factory/': 'v2023.2',
-    '/firmware/download/from-2023.2.x/other/': 'v2023.2',
-    '/firmware/download/from-2023.2.x/sysupgrade/': 'v2023.2',
-
-    '/firmware/download/from-2024.1.x/factory/': 'v2024.1',
-    '/firmware/download/from-2024.1.x/other/': 'v2024.1',
-    '/firmware/download/from-2024.1.x/sysupgrade/': 'v2024.1',
-
+{% endif %}
+{% endfor %}
   },
   // page title
   title: 'Firmware',
   // branch descriptions shown during selection
   branch_descriptions: {
-    'v2023.1': 'oldstable - Gluon v2023.1.x basiert auf OpenWrt 22.03 - nicht für 4/32er Geräte - unterstützt updates von v2021.1 oder neuer',
-    'v2023.2': 'stable - Gluon v2023.2.x basiert auf OpenWrt 23.05 - unterstützt updates von v2023.1 oder neuer',
-    'v2024.1': 'experimental - Gluon v2024.1.x basiert auf OpenWrt main - nicht offiziell unterstützt',
+{% for branch in firmware_branches %}
+    '{{ branch.name }}': '{{ branch.description }}',
+{% endfor %}
   },
   // recommended branch will be marked during selection
-  recommended_branch: 'v2023.2',
+  recommended_branch: '{{ firmware_recommended_branch }}',
   // experimental branches (show a warning for these branches)
-  experimental_branches: ['v2024.1'],
+  experimental_branches: [{% for branch in firmware_branches if branch.experimental | default(false) %}'{{ branch.name }}'{% if not loop.last %}, {% endif %}{% endfor %}],
   // path to preview pictures directory
-  preview_pictures: 'https://map.aachen.freifunk.net/pictures-jpg/',
+  preview_pictures: '{{ firmware_preview_pictures }}',
   // link to changelog
   changelog: '{{ firmware_changelog }}'
 };

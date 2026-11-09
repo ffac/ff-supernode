@@ -5,3 +5,14 @@ community_prefix: "gluon-ff-"
 recommended_toggle: "true"
 version_regex: /-(v?\d+\.\d+\.\d+(-\d+)?(-.+~exp\d{8})?(.*-next\d{8})?)-/
 firmware_changelog: "CHANGELOG.html"
+
+# Gluon branches offered by the selector, oldest first. dir is the directory
+# below /firmware/download/ that holds factory/, other/ and sysupgrade/.
+# Example:
+#   - name: v2025.1
+#     dir: from-2025.1.x
+#     description: "stable - Gluon v2025.1.x"
+#     experimental: false
+firmware_branches: []
+firmware_recommended_branch: ""
+firmware_preview_pictures: ""
