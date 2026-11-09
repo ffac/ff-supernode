@@ -22,8 +22,8 @@
 
 		"multi-threading": {
 			"enable-multi-threading": true,
-			"thread-pool-size": 4,
-			"packet-queue-size": 16
+			"thread-pool-size": {{ dhcp_thread_pool_size }},
+			"packet-queue-size": {{ dhcp_packet_queue_size }}
 		},
 
 		// Addresses will be assigned with a lifetime of {{ dhcp_valid_leasetime }} seconds.
@@ -73,7 +73,7 @@
 				"option-data": [
 					{
 						"name": "domain-name-servers",
-						"data": "{{ client_dns_server_v4 }}"
+						"data": "{{ [client_dns_server_v4] | flatten | join(', ') }}"
 					},
 					{
 						"name": "routers",

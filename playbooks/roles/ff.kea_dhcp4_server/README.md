@@ -13,7 +13,7 @@ using `mesh_pool_size=64` every domain (here: 20) uses the following split range
 while sn01 has the IP: `10.20.0.1`
 and gives IPs in the range: `10.20.0.20 - 10.20.63.254`
 
-sn02 has the IP: `10.20.128.1`
+sn02 has the IP: `10.20.64.1`
 and gives IPs in the range: `10.20.64.20 - 10.20.127.254`
 
 sn03 has the IP: `10.20.128.1`

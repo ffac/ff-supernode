@@ -1,5 +1,13 @@
 ---
 
+- name: "Check required variables"
+  ansible.builtin.assert:
+    that:
+      - sn is defined
+      - domains is defined
+      - client_dns_server_v4 is defined
+    fail_msg: "kea_dhcp4_server needs sn, domains and client_dns_server_v4"
+
 - name: "Add ISC Kea repository key"
   ansible.builtin.get_url:
     url: https://dl.cloudsmith.io/public/isc/kea-2-6/gpg.63D408891D8B8D01.key
@@ -42,21 +50,20 @@
     state: "mounted"
 
 - name: "Generate kea-dhcp4.conf config"
-  notify: "Restart isc-kea-dhcp4-server"
+  notify: "Reload isc-kea-dhcp4-server"
   ansible.builtin.template:
     src: "kea-dhcp4.conf.j2"
     dest: "/etc/kea/kea-dhcp4.conf"
     mode: "0644"
     owner: "_kea"
     group: "_kea"
+    validate: "/usr/sbin/kea-dhcp4 -t %s"
 
-- name: "Create /etc/systemd/system/isc-kea-dhcp4-server.service.d directory if it does not exist"
+# older versions of this role created an unused drop-in directory
+- name: "Remove unused isc-kea-dhcp4-server.service.d directory"
   ansible.builtin.file:
-    state: "directory"
     path: "/etc/systemd/system/isc-kea-dhcp4-server.service.d"
-    mode: "0755"
-    owner: "root"
-    group: "root"
+    state: "absent"
 
 - name: "Start isc-kea-dhcp4-server service"
   ansible.builtin.systemd:
