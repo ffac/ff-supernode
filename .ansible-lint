@@ -1,0 +1,10 @@
+---
+profile: moderate
+exclude_paths:
+  - .git/
+  - .ansible/
+  - .github/
+  - playbooks/roles/ff.grafana/files/
+# The ff. prefix on role names is intentional.
+skip_list:
+  - role-name

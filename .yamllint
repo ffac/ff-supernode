@@ -1,0 +1,19 @@
+---
+extends: default
+
+rules:
+  line-length:
+    max: 160
+    level: warning
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: disable
+  document-start: disable
+  truthy:
+    allowed-values: ["true", "false"]
+  braces:
+    max-spaces-inside: 1
+    level: error
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: true
