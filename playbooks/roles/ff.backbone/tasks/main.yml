@@ -19,6 +19,29 @@
     owner: bird
     group: bird
 
+# The config below logs at info level into a single file. Debian ships no
+# logrotate entry for bird, so the file only ever grows - 143 MB after ten
+# weeks on sn03, on a VM whose disk is 7.8 GB. copytruncate keeps bird's open
+# file descriptor usable, no reload needed.
+- name: Install Bird logrotate config
+  ansible.builtin.copy:
+    dest: /etc/logrotate.d/bird
+    mode: "0644"
+    owner: root
+    group: root
+    content: |
+      /var/log/bird/*.log {
+          weekly
+          maxsize 50M
+          rotate 4
+          compress
+          delaycompress
+          missingok
+          notifempty
+          copytruncate
+          su bird bird
+      }
+
 - name: Install Bird Conf
   register: restartbird
   ansible.builtin.template:
