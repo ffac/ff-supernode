@@ -39,6 +39,12 @@ supernodes:
     sn02:
     sn03:
 
+# Hosts that terminate parker uplinks next to their supernode duties. One at
+# first.
+parker_concentrators:
+  hosts:
+    sn03:
+
 monitoring:
   hosts:
     monitor:

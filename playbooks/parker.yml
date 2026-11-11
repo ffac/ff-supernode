@@ -1,0 +1,55 @@
+---
+
+- name: Configure the parker uplink
+  hosts: "parker_concentrators"
+  pre_tasks:
+    - name: Read the IPv6 forwarding setting
+      # ff.ipforward in playbooks/supernode.yml sets this; the parker play
+      # does not install it, so a concentrator that never ran that play would
+      # silently drop every packet it is supposed to translate.
+      ansible.builtin.slurp:
+        src: /proc/sys/net/ipv6/conf/all/forwarding
+      register: ipv6_forwarding
+      changed_when: false
+
+    - name: Assert that IPv6 forwarding is enabled
+      ansible.builtin.assert:
+        that:
+          - ipv6_forwarding.content | b64decode | trim == "1"
+        fail_msg: >-
+          net.ipv6.conf.all.forwarding is
+          {{ ipv6_forwarding.content | b64decode | trim }} - NAT64 and DNS64
+          only serve other hosts' traffic, and Jool hooks PRE_ROUTING, so
+          forwarded packets must arrive here. Run playbooks/supernode.yml
+          (role ff.ipforward) on this host first.
+        quiet: true
+
+    - name: Assert that DNS64 and NAT64 use the same prefix
+      # Two independent defaults for one /96: AAAA records synthesised under a
+      # prefix that Jool does not translate (and vice versa) fail silently,
+      # with a resolvable name whose address goes nowhere.
+      ansible.builtin.assert:
+        that:
+          - dns64_prefix == jool_pool6
+        fail_msg: >-
+          dns64_prefix ({{ dns64_prefix }}) and jool_pool6
+          ({{ jool_pool6 }}) differ - DNS64 would synthesise addresses that
+          nothing translates.
+        quiet: true
+
+    - name: "Import pre_tasks: reboot-required.yml"
+      ansible.builtin.import_tasks: "include/reboot-required.yml"
+      tags: [always]
+    - name: "Import pre_task etckeeper"
+      ansible.builtin.import_tasks: "include/etckeeper_pre.yml"
+      tags: [always]
+  roles:
+    # The pair that has never run: DNS64 answers AAAA from A for clients in
+    # the parker pool, NAT64 translates the resulting 64:ff9b::/96 traffic to
+    # IPv4. ff.parker_concentrator joins them once a node registers.
+    - { role: ff.dns64, tags: dns64, become: true }
+    - { role: ff.jool, tags: jool, become: true }
+  post_tasks:
+    - name: "Import post_task etckeeper"
+      ansible.builtin.import_tasks: "include/etckeeper_post.yml"
+      tags: [always]

@@ -1,0 +1,56 @@
+---
+# Parker uplink: nodes register over HTTP and receive a routed /63; their
+# clients reach IPv4 through the NAT64 + DNS64 pair that playbooks/parker.yml
+# installs.
+
+# Our own segments use 2a03:2260:3006:0100::/56, :0200::/56 and :0300::/56,
+# so the upper half of the /48 is free for parker slots.
+#
+# One /56 for now: 128 slots, ids 1..127, which no FFRL filter can object to -
+# they already route our other /56s. Short of the surrounding /49 (16384
+# slots) on purpose, and growing later is purely additive: the id -> /64
+# mapping is 2*id, the same in both, so no node is renumbered when the
+# announced prefix gets shorter. That /49 is 2a03:2260:3006:8000::/49.
+parker_pool6: "2a03:2260:3006:8000::/56"
+
+# DNS64 must answer only clients whose IPv4 transits our NAT64: synthesised
+# AAAA for native-IPv4 clients breaks Happy Eyeballs, and an open resolver on
+# a supernode uplink is worse.
+dns64_networks:
+  - "{{ parker_pool6 }}"
+
+# Same /96 for both halves of the pair, so a client's synthesised AAAA is an
+# address Jool actually translates. The play asserts the two agree; this line
+# keeps them from drifting apart in the first place.
+dns64_prefix: "{{ jool_pool6 }}"
+
+# The public IPv4 this host's NAT64 masks translated flows with. Every
+# concentrator sets it in its host_vars; the empty default is what makes a
+# forgotten one fail the jool role's assert instead of the whole play with an
+# undefined variable.
+parker_pool4: ""
+
+# NAT64 masks translated flows with the host's public IPv4 (see host_vars).
+jool_pool4_prefix: "{{ parker_pool4 }}"
+
+# Ports NAT64 may mask translated flows to on the pool4 address. One BIB entry
+# per client source port and protocol, held for udp 5 min and tcp 2 h, so the
+# width is the flow capacity of the whole concentrator: 11000 ports carry
+# ~36 new UDP sockets/s or ~1.5 new TCP connections/s in steady state, or
+# 11000 simultaneous TCP connections. Kept below the host's ephemeral range
+# (32768-60999) and clear of its listening ports; the role asserts both. A
+# dedicated second pool4 address lifts the ceiling to the full port space once
+# real traffic outgrows this.
+jool_port_range: "20000-30999"
+
+# Only parker clients may use the NAT64. Their addresses come out of the same
+# pool the broker hands prefixes from, so the guard and the DNS64 ACL are the
+# same set - anything outside it would be turned into an open relay.
+jool_source6_allow:
+  - "{{ parker_pool6 }}"
+
+# ... and they have to come through the tunnel. Without this the guard trusts
+# the source prefix alone, so a packet with a spoofed pool address (sent from
+# anywhere that can route to 64:ff9b::/96) would be translated too. On wg-nodes
+# wireguard has already checked the peer's allowed-ips.
+jool_source6_interface: "wg-nodes"

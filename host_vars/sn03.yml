@@ -156,3 +156,7 @@ radv_announce_default: true
 #local_vxlan_supernode: 2a00:fe0:43::201
 #remote_vxlan_supernode: 2a00:fe0:43::202
 yanic_central: "true"
+
+# parker uplink (playbooks/parker.yml): the address NAT64 masks translated
+# flows with - eth0's public IPv4, whose return path is already routed here
+parker_pool4: "5.145.135.153/32"
