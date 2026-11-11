@@ -104,12 +104,12 @@
     dest: /usr/local/sbin/iptables.sh
     mode: "0755"
 
-- name: Install iptables.sh.service
+- name: "Install iptables.sh.service"
   ansible.builtin.template:
     src: iptables.sh.service
     dest: /etc/systemd/system/iptables.sh.service
     notify:
-      - reload systemctl
+      - Reload systemd daemon
 
 - name: Enable iptables.sh.service
   ansible.builtin.service:
