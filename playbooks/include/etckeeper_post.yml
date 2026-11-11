@@ -1,10 +1,19 @@
 ---
 
 - name: Etckeeper post-commit
-  ansible.builtin.shell: >-
-    etckeeper commit "post-commit changes after Ansible run
-    ({{ local_username.stdout }}, tags: {{ ansible_run_tags | join(",") }})"
-    || echo "nothing to commit"
+  # see etckeeper_pre.yml: without become this runs as the login user and
+  # silently leaves every change of the run unversioned
+  become: true
+  ansible.builtin.command:
+    argv:
+      - etckeeper
+      - commit
+      - >-
+        post-commit changes after Ansible run
+        ({{ local_username.stdout }}, tags: {{ ansible_run_tags | join(",") }})
   register: post_result
-  changed_when: post_result.stdout.find('nothing to commit') == -1
+  changed_when: post_result.rc == 0
+  failed_when: >-
+    post_result.rc not in [0, 1]
+    or (post_result.rc == 1 and 'nothing to commit' not in post_result.stdout)
   tags: [always]

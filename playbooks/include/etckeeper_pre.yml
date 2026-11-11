@@ -15,10 +15,22 @@
   check_mode: false
 
 - name: Etckeeper pre-commit
-  ansible.builtin.shell: >-
-    etckeeper commit "pre-commit changes before Ansible runs
-    ({{ local_username.stdout }}, tags: {{ ansible_run_tags | join(",") }})"
-    || echo "nothing to commit"
+  # /etc is a git repository owned by root. Run by the login user, etckeeper
+  # dies in commit.d/20store-metadata and the change never reaches a commit,
+  # which a `|| echo "nothing to commit"` used to hide as a green task.
+  become: true
+  ansible.builtin.command:
+    argv:
+      - etckeeper
+      - commit
+      - >-
+        pre-commit changes before Ansible runs
+        ({{ local_username.stdout }}, tags: {{ ansible_run_tags | join(",") }})
   register: pre_result
-  changed_when: pre_result.stdout.find('nothing to commit') == -1
+  # a clean tree exits 1 with "nothing to commit"; every other non-zero
+  # status (128 for a broken repo, 127 for a missing binary) is a real error
+  changed_when: pre_result.rc == 0
+  failed_when: >-
+    pre_result.rc not in [0, 1]
+    or (pre_result.rc == 1 and 'nothing to commit' not in pre_result.stdout)
   tags: [always]
