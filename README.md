@@ -100,7 +100,7 @@ MAC addresses are not allowed to start with FF - systemd-networkd complains abou
 * ff.ipforward - configures ipforwarding on the host
 * ff.wait_for - waits until interfaces are ready
 * ff.networkd - configures network based on `networkd_configures` in host_vars
-* ff.mesh_wireguard - installs wireguard, vxlan and batman per domain (+ wg_netlink service with https://github.com/freifunkh/wireguard-vxlan-glue.git)
+* ff.mesh_wireguard - installs wireguard, vxlan and batman per domain (+ wg_netlink service with https://github.com/ffac/wireguard-vxlan-glue.git)
 * ff.mesh_wireguard_remotes_peers_git - clones `peers-wg` repo containing client public keys and updates them regularly through cron
 * ff.radv_server - install radvd with the given `mesh_prefix` and IPv6 config
 * ff.kea_dhcp4_server - configures internal DHCP server for IPv4 and subnets per domain

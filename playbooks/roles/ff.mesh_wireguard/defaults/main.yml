@@ -3,3 +3,10 @@
 mesh_wireguard_iface_prefix: "wg"
 vxlan_iface_prefix: "vx"
 vxlan_port: 4789
+
+mesh_wireguard_vxlan_glue_repo: "https://github.com/ffac/wireguard-vxlan-glue.git"
+mesh_wireguard_vxlan_glue_version: "master"
+# Discards local modifications in the checkout. Only needed once for hosts
+# that still carry the old freifunkh/deploy checkout:
+#   -e mesh_wireguard_vxlan_glue_force=true
+mesh_wireguard_vxlan_glue_force: false

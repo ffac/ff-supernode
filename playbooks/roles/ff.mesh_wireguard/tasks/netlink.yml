@@ -22,9 +22,10 @@
 
 - name: Fetch wireguard-vxlan-glue
   ansible.builtin.git:
-    repo: "https://github.com/freifunkh/wireguard-vxlan-glue.git"
+    repo: "{{ mesh_wireguard_vxlan_glue_repo }}"
     dest: /srv/wireguard/vxlan-glue
-    version: deploy
+    version: "{{ mesh_wireguard_vxlan_glue_version }}"
+    force: "{{ mesh_wireguard_vxlan_glue_force | bool }}"
   register: repo
 
 - name: Install wg_netlink service
