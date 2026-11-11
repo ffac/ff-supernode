@@ -121,7 +121,7 @@ bird:
     - name: reject_internal_prefixes_v6
       default_accept: yes
       rules:
-        - "if net ~ [2a00:fe0:43::/48+, 2a03:2260:3006:200::/56] then reject;"
+        - "if net ~ [2a00:fe0:43::/48+, 2a03:2260:3006:100::/56] then reject;"
     - name: accept_public_prefix_v6
       default_accept: no
       rules:
@@ -134,7 +134,7 @@ bird:
     - name: filter_kernel_v6
       default_accept: yes
       rules:
-        - "if net ~ [2a00:fe0:43::/48+, 2a03:2260:3006:200::/56{56,64}] then reject;"
+        - "if net ~ [2a00:fe0:43::/48+, 2a03:2260:3006:100::/56{56,64}] then reject;"
 
 client_dns_server_v4: 5.145.135.158
 client_dns_server_v6: 2a00:fe0:43::158
