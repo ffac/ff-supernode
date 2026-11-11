@@ -44,7 +44,7 @@
     name: isc-kea
     types: deb
     uris: "https://dl.cloudsmith.io/public/isc/{{ kea_repo_series }}/deb/debian"
-    suites: "{{ ansible_distribution_release }}"
+    suites: "{{ ansible_facts['distribution_release'] }}"
     components: main
     architectures: amd64
     signed_by: "https://dl.cloudsmith.io/public/isc/{{ kea_repo_series }}/gpg.{{ kea_repo_keys[kea_repo_series] }}.key"

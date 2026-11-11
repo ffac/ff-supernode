@@ -13,7 +13,7 @@
 - name: Ensure golang
   ansible.builtin.apt:
     name: golang
-    default_release: "{{ ansible_distribution_release }}"
+    default_release: "{{ ansible_facts['distribution_release'] }}"
 
 - name: Create yanic user
   ansible.builtin.user:
