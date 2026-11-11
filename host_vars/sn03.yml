@@ -55,6 +55,27 @@ networkd_interfaces:
         table: 42
       - from: "10.0.0.0/11"
         table: 42
+      # The parker pool is routed in bird's table 42, and the packets Jool
+      # translates back carry 64:ff9b:: as their source, so the `from` rules
+      # above never match them. Without this destination-based rule the kernel
+      # looks the pool up in main, finds no route there, and sends the return
+      # path to the backbone default instead of the tunnel.
+      - to: "{{ parker_pool6 }}"
+        table: 42
+        # clear of the auto-assigned block (3276x) and above the kernel's
+        # `from all lookup main` at 32766, which would otherwise win
+        priority: 32750
+      # ... and the forward direction needs the same push: traffic sourced
+      # from a pool address is the node talking to the outside world. The pool
+      # is announced to FFRL, not to the site uplink, so only the backbone link
+      # has a path back. Left to main the packet leaves via eth0 and the answer
+      # either never returns or is dropped as spoofed at the site uplink's
+      # ingress filter.
+      - from: "{{ parker_pool6 }}"
+        table: 42
+        # ahead of the `to` rule so a node-to-node flow uses one table either
+        # way, and still above `from all lookup main`
+        priority: 32749
   - name: ens19
     # IPv4 only, no router advertisement on this link either
     no_radv_accept: True

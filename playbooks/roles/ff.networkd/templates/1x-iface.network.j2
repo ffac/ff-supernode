@@ -72,7 +72,15 @@ MultiPathRoute={{ mpr }}
 
 {% for policy_rule in interface.routing_policies | default([]) %}
 [RoutingPolicyRule]
+{% if policy_rule.from is defined %}
 From={{ policy_rule.from }}
+{% endif %}
+{% if policy_rule.to is defined %}
+To={{ policy_rule.to }}
+{% endif %}
+{% if policy_rule.priority is defined %}
+Priority={{ policy_rule.priority }}
+{% endif %}
 Table={{ policy_rule.table }}
 
 {% endfor %}
