@@ -66,9 +66,10 @@
       ansible.builtin.import_tasks: "include/etckeeper_pre.yml"
       tags: [always]
   roles:
-    # The pair that has never run: DNS64 answers AAAA from A for clients in
-    # the parker pool, NAT64 translates the resulting 64:ff9b::/96 traffic to
-    # IPv4. ff.parker_concentrator joins them once a node registers.
+    # The interface first, so the NAT64 guard can name it; then the pair that
+    # translates: DNS64 answers AAAA from A for clients in the parker pool,
+    # NAT64 translates the resulting 64:ff9b::/96 traffic to IPv4.
+    - { role: ff.parker_concentrator, tags: parker, become: true }
     - { role: ff.dns64, tags: dns64, become: true }
     - { role: ff.jool, tags: jool, become: true }
   post_tasks:

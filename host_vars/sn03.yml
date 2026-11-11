@@ -198,13 +198,54 @@ yanic_central: "true"
 # flows with - eth0's public IPv4, whose return path is already routed here
 parker_pool4: "5.145.135.153/32"
 
+# This concentrator's end of the parker tunnels. The address sits in the id-0
+# /63 of the pool, the one slot the allocator never hands out, and the node
+# configures it as the peer of its own /128 - so it needs no route of its own.
+parker_address6: "2a03:2260:3006:8000::1/128"
+parker_privatekey: "{{ parker_sn03_privatekey }}"
+
 # Parker config service. The broker itself comes from playbooks/broker.yml;
 # `monitor` keeps its instance for images that still have
-# wg-broker.freifunk-aachen.de baked in. Without enabled: true this block
-# changes nothing on sn03. usign_secret is the vaulted key content the role
-# writes to wgbroker_parker_secret_key.
+# wg-broker.freifunk-aachen.de baked in. usign_secret is the vaulted key
+# content the role writes to wgbroker_parker_secret_key.
+#
+# Everything a node is told is in this block; the registry it builds starts
+# local to this host.
 wgbroker_parker:
+  enabled: true
   usign_secret: "{{ parker_usign_secret }}"
+  prefix6: "{{ parker_pool6 }}"
+  # Community-wide client IPv4: no per-node assignment, so every node hands
+  # its clients an address out of this /22 and the first 16 are reserved for
+  # the routers themselves (clientaddr.lua). 10.80.96.0/22 is free in our
+  # network - the mesh carries no other client IPv4.
+  range4: "10.80.96.0/22"
+  address4: "10.80.96.1"
+  mtu: 1406
+  wg_keepalive: 25
+  retry: 120
+  # Omit xlat to fall back to routed IPv4 in the tunnel fleet-wide; the
+  # concentrator interface carries IPv6 only, so this stays on.
+  xlat: true
+  rate_limit:
+    burst: 10
+    window: 3600
+    daily: 200
+  # Both concentrators are always sent, so a node fails over on a stale
+  # handshake instead of waiting for a reflash. address4 is only read in the
+  # routed mode; under xlat the node ignores it.
+  concentrators:
+    - id: 1
+      pubkey: "7IRdL29opT9mPWqLL/BR2uOprNYa0Evh7zDUsiM6kzs="
+      endpoint: "03.wg-node.freifunk-aachen.de:10000"
+      address6: "2a03:2260:3006:8000::1"
+      address4: "10.80.96.1"
+  # Log-only for the first cycle, so we see what it would remove.
+  gc:
+    enabled: true
+    dry_run: true
+    never_handshaked_days: 7
+    silent_days: 90
 
 # site.conf sends both broker endpoints (add_key, /config) here, so the role
 # brings its own nginx vhost and certificate (playbooks/broker.yml).

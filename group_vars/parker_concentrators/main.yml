@@ -13,6 +13,14 @@
 # announced prefix gets shorter. That /49 is 2a03:2260:3006:8000::/49.
 parker_pool6: "2a03:2260:3006:8000::/56"
 
+# Pool the reconciler derives the node prefixes from; the broker allocates out
+# of the same one, so both sides have to read it from here.
+parker_prefix6: "{{ parker_pool6 }}"
+
+# Publish each node's last handshake into the registry, so the broker-side GC
+# can also see nodes that only ever reach this one concentrator.
+parker_gc_publish: true
+
 # DNS64 must answer only clients whose IPv4 transits our NAT64: synthesised
 # AAAA for native-IPv4 clients breaks Happy Eyeballs, and an open resolver on
 # a supernode uplink is worse.
