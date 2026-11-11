@@ -33,6 +33,14 @@ parker_pool4: ""
 # NAT64 masks translated flows with the host's public IPv4 (see host_vars).
 jool_pool4_prefix: "{{ parker_pool4 }}"
 
+# Where the delegated /64s are routed instead of main: bird's kernel table on a
+# supernode (host_vars: bird.kernel ip_table 42 with `learn: true` and the
+# accept_parker_pool_v6 import filter). bird announces them in OSPF, and the
+# destination-based ip rule in host_vars sends this host's own lookups for the
+# pool into the same table - without both, the prefixes would be announced but
+# the NAT64's return packets would leave through the backbone default.
+parker_route_table: "42"
+
 # Ports NAT64 may mask translated flows to on the pool4 address. One BIB entry
 # per client source port and protocol, held for udp 5 min and tcp 2 h, so the
 # width is the flow capacity of the whole concentrator: 11000 ports carry

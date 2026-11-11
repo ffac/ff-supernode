@@ -73,6 +73,15 @@ bird:
         - "filter filter_kernel_v4"
     - is_ipv6: yes
       ip_table: 42
+      # ff.parker_concentrator writes the delegated /64s into table 42 with
+      # `ip route replace`. bird ignores routes it did not install itself
+      # unless it is told to learn them: without this the prefixes sit in 42,
+      # reach neither master6 nor OSPF, and nothing forwards to them. The
+      # import filter keeps table 42 from feeding arbitrary routes into our
+      # announcements - only the parker pool is taken over.
+      learn: true
+      imports:
+        - "filter accept_parker_pool_v6"
       # bird_table: auxtable
       exports:
         - "filter filter_kernel_v6"
@@ -136,6 +145,13 @@ bird:
       default_accept: no
       rules:
         - "if net ~ [2a03:2260:3006::/48+] then accept;"
+    - name: accept_parker_pool_v6
+      # Import filter of the kernel protocol: the parker reconciler adds one
+      # /64 per node to table 42 without telling bird. `learn` picks them up,
+      # this filter decides which ones are ours.
+      default_accept: no
+      rules:
+        - "if net ~ [{{ parker_pool6 }}+] then accept;"
     - name: filter_kernel_v4
       default_accept: yes
       rules:

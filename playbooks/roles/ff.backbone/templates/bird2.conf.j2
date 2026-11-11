@@ -44,6 +44,9 @@ protocol kernel {
 {% if kernel.bird_table is defined %}
     table {{ kernel.bird_table }};
 {%endif %}
+{% if kernel.learn is defined and kernel.learn %}
+    learn;
+{% endif %}
 }
 {% endfor %}
 

@@ -37,6 +37,28 @@
           nothing translates.
         quiet: true
 
+    - name: Assert that bird reads the parker route table
+      # ff.parker_concentrator writes the delegated /64s into
+      # parker_route_table instead of main. Any other table only works if
+      # bird's kernel protocol is attached to it and learns routes it did not
+      # install itself - otherwise the prefixes exist, are announced by nobody,
+      # and nothing forwards to them either.
+      ansible.builtin.assert:
+        that:
+          - parker_route_table | default('main') == 'main' or
+            (bird | default({})).get('kernel', []) | selectattr('ip_table', 'defined')
+            | map(attribute='ip_table') | map('string')
+            | select('equalto', parker_route_table | string) | list | length > 0
+          - parker_route_table | default('main') == 'main' or
+            (bird | default({})).get('kernel', []) | selectattr('learn', 'defined')
+            | selectattr('learn') | list | length > 0
+        fail_msg: >-
+          parker_route_table is "{{ parker_route_table | default('main') }}",
+          but no bird kernel protocol uses that table, or it does not learn
+          foreign routes. Add `learn: true` and an import filter for the pool
+          to that kernel protocol (see host_vars/sn03.yml).
+        quiet: true
+
     - name: "Import pre_tasks: reboot-required.yml"
       ansible.builtin.import_tasks: "include/reboot-required.yml"
       tags: [always]
