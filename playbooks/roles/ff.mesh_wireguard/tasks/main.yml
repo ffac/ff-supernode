@@ -10,7 +10,11 @@
   ansible.builtin.file:
     path: /etc/wireguard
     state: directory
-    mode: u=rwx,g=rx,o=rx
+    # 0755 is the mode ff.mesh_wireguard_remotes_peers_git needs: it creates
+    # /etc/wireguard/peers-wg as the unprivileged auto user, which has to
+    # traverse this directory. The private keys stay 0640 root:systemd-network;
+    # the directory mode only exposes the file names.
+    mode: "0755"
     owner: "root"
     group: "systemd-network"
 

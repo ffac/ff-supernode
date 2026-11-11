@@ -1,13 +1,5 @@
 ---
 
-- name: Ensure wireguard config directory
-  ansible.builtin.file:
-    path: /etc/wireguard
-    state: directory
-    mode: "0650"
-    owner: "root"
-    group: "systemd-network"
-
 - name: Place netlink config
   ansible.builtin.template:
     src: netlink_cfg.json.j2
