@@ -45,6 +45,12 @@ parker_concentrators:
   hosts:
     sn03:
 
+# The wireguard broker (add_key and /config). It still runs on `monitor` via
+# playbooks/monitoring.yml; this group is the host it is moving to.
+wgbrokers:
+  hosts:
+    sn03:
+
 monitoring:
   hosts:
     monitor:
