@@ -1,4 +1,5 @@
 import glob
+import json
 import os
 import pwd
 import re
@@ -7,15 +8,47 @@ import unicodedata
 
 from pathlib import Path
 
-from flask import Flask, jsonify, request
+import parker_lib
+from flask import Flask, Response, jsonify, request
 
 
 REPO = "/etc/wireguard/peers-wg"
+
+# The parker records live in a registry of their own, not in the batman peer
+# list above. Empty remote = local only: no pull, no push, the commits on
+# this host are the audit log.
+PARKER_REPO = {{ wgbroker_parker_repo | tojson }}
+PARKER_REPO_REMOTE = {{ wgbroker_parker_repo_remote | default("") | tojson }}
+
+# Parker config service: community constants and concentrator list from
+# group/host vars, null disables the /config endpoint. See
+# playbooks/files/parker_lib.py.
+# (Double tojson: the config arrives as one JSON string literal, since
+# tojson's true/false/null are not python literals.)
+# usign_secret is key content, not runtime config: drop it so the key never
+# lands in this readable file; the broker signs with PARKER_SIGN_KEY below.
+{% set _parker = (wgbroker_parker | default({}, true)) | dict2items
+                 | rejectattr("key", "equalto", "usign_secret") | items2dict %}
+PARKER = json.loads({{ _parker | tojson | tojson }})
+
+# The role writes the signing key to this path (owner auto, mode 0600).
+PARKER_SIGN_KEY = {{ wgbroker_parker_secret_key | tojson }}
+PARKER_SIGNER = {{ wgbroker_parker_signer | tojson }}
 
 app = Flask(__name__)
 # TODO(ruairi): Refactor load_config to return Dataclass.
 
 WG_PUBKEY_PATTERN = re.compile(r"^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw480]=$")
+
+_parker_cfg = PARKER if PARKER and PARKER.get("enabled") else None
+_parker_limiter = None
+if _parker_cfg:
+    _limits = _parker_cfg.get("rate_limit", {})
+    _parker_limiter = parker_lib.RateLimiter(
+        burst=_limits.get("burst", 10),
+        window=_limits.get("window", 3600),
+        daily=_limits.get("daily", 200),
+    )
 
 # https://gist.github.com/berlotto/6295018
 _slugify_strip_re = re.compile(r'[^\w\s-]')
@@ -48,9 +81,16 @@ def execute_autouser(cmd):
     env = os.environ.copy()
     env.update({'HOME': homedir, 'LOGNAME': autouser, 'USER': autouser})
 
-    s = subprocess.Popen([cmd], shell=True, env=env,
-                         preexec_fn=demote(user_uid, user_gid), stdout=subprocess.PIPE)
-    s.wait()
+    s = subprocess.run([cmd], shell=True, env=env,
+                       preexec_fn=demote(user_uid, user_gid),
+                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if s.returncode != 0:
+        # Before the reply carried allocated prefixes a lost commit or push
+        # was invisible and harmless; the node would just retry. Surface it
+        # in the response instead of answering "OK" regardless.
+        raise RuntimeError(f"{cmd}: exit {s.returncode}: "
+                           + s.stderr.decode(errors='replace').strip())
+    return s
 
 def push_repo():
     execute_autouser(f"git -C {REPO} push")
@@ -112,6 +152,80 @@ def add_key():
         return jsonify({"Message": error_msg}), 200
 
     return jsonify({"Message": "OK"}), 200
+
+
+def _parker_error(message, status):
+    # nodeconfig.sh retries on any failed fetch; a plain status code is all
+    # the node reads, the body is for journalctl.
+    app.logger.warning(f"parker /config {status}: {message}")
+    return Response(f"{message}\n", status=status, content_type="text/plain")
+
+
+@app.route("/config", methods=["GET"])
+def parker_config():
+    """Introduce a parker node and hand it its delegated prefixes.
+
+    Query parameters as sent by nodeconfig.sh: pubkey, nonce, v6mtu,
+    version and optionally tc_ingress/tc_egress. The response is the JSON
+    config followed by a newline and one detached usign signature line;
+    the node verifies it against site.parker.config_pubkey.
+    """
+    if _parker_cfg is None:
+        return _parker_error("parker config service disabled", 404)
+
+    try:
+        pubkey = parker_lib.validate_pubkey(request.args.get("pubkey", "").strip())
+        nonce = parker_lib.validate_nonce(request.args.get("nonce", ""))
+    except parker_lib.InvalidRequest as exc:
+        return _parker_error(str(exc), 400)
+
+    app.logger.info(
+        "parker /config from %s: version=%s v6mtu=%s tc=%s/%s",
+        request.remote_addr,
+        request.args.get("version"),
+        request.args.get("v6mtu"),
+        request.args.get("tc_ingress"),
+        request.args.get("tc_egress"),
+    )
+
+    def rate_limit(new_pubkey):
+        source = request.remote_addr or "unknown"
+        if not _parker_limiter.allow_new(source):
+            raise parker_lib.RateLimited(
+                f"allocation limit reached for {source}"
+            )
+
+    try:
+        record = parker_lib.get_or_allocate(
+            PARKER_REPO,
+            _parker_cfg,
+            pubkey,
+            lock_path=_parker_cfg.get("lock_path", "/home/auto/.parker-allocation.lock"),
+            push_flag=_parker_cfg.get("push_flag", "/home/auto/.parker-push-pending"),
+            before_create=rate_limit,
+            sync=bool(PARKER_REPO_REMOTE),
+        )
+        conf = parker_lib.build_config(_parker_cfg, pubkey, record["id"], nonce)
+        body = json.dumps(conf, separators=(",", ":")) + "\n"
+        signature = parker_lib.sign_message(
+            PARKER_SIGN_KEY, body.encode("utf-8"), binary=PARKER_SIGNER
+        )
+    except parker_lib.RateLimited as exc:
+        return _parker_error(str(exc), 429)
+    except parker_lib.PushPending:
+        # Committed here but not on the git server: the second gateway
+        # would not program this prefix. Retry the push on the next poll.
+        return _parker_error("registry not in sync, retrying", 503)
+    except (parker_lib.PoolExhausted, parker_lib.RecordConflict) as exc:
+        return _parker_error(f"parker registry: {exc}", 503)
+    except parker_lib.GitError as exc:
+        return _parker_error(f"registry unavailable: {exc}", 503)
+    except parker_lib.SignError as exc:
+        return _parker_error(f"signing failed: {exc}", 500)
+
+    return Response(
+        body + signature + "\n", status=200, content_type="text/plain; charset=utf-8"
+    )
 
 
 #@app.route("/api/del_key", methods=["POST"])

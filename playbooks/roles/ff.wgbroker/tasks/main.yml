@@ -8,7 +8,6 @@
   vars:
     packages:
       - python3
-      - python3-pip
       - git
 
 - name: Create auto user
@@ -53,12 +52,12 @@
     group: auto
   register: updatebroker
 
-- name: Install gunicorn and Flask python package
-  become: true
-  become_user: auto
-  ansible.builtin.pip:
+- name: Install flask and gunicorn
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
     name:
-      - flask
+      - python3-flask
       - gunicorn
 
 - name: Set Git Config Mail
@@ -89,6 +88,17 @@
     scope: local
     value: "auto"
 
+# The workers import this at start, so it has to be in place before the
+# service is (re)started below.
+- name: Install parker helper library
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/files/parker_lib.py"
+    dest: /home/auto/parker_lib.py
+    mode: "0644"
+    owner: auto
+    group: auto
+  register: updateparkerlib
+
 - name: Install broker service
   ansible.builtin.template:
     src: wgbroker.service.j2
@@ -102,3 +112,87 @@
     daemon_reload: true
     enabled: true
   when: servicefile is changed or updatebroker is changed
+        or updateparkerlib is changed
+
+# parker config service (GET /config), see defaults/main.yml
+
+- name: Install the parker config signer
+  ansible.builtin.apt:
+    name: "{{ wgbroker_parker_signer }}"
+  when: wgbroker_parker.get('enabled', false) | bool
+
+- name: Ensure the signing key directory
+  ansible.builtin.file:
+    path: "{{ wgbroker_parker_secret_key | dirname }}"
+    state: directory
+    owner: auto
+    group: auto
+    mode: "0750"
+  when: wgbroker_parker.get('enabled', false) | bool
+
+- name: Install parker signing key
+  ansible.builtin.copy:
+    content: "{{ wgbroker_parker.usign_secret }}"
+    dest: "{{ wgbroker_parker_secret_key }}"
+    mode: "0600"
+    owner: auto
+    group: auto
+    directory_mode: "0750"
+  no_log: true
+  when: wgbroker_parker.get('enabled', false) | bool
+
+# The registry is a repository of its own, so the parker records never mix
+# with the batman peer keys in peers-wg. Local only unless a remote is set:
+# the broker then commits here and the concentrators read the same tree.
+- name: Create the parker registry directory
+  ansible.builtin.file:
+    path: "{{ wgbroker_parker_repo }}"
+    state: directory
+    owner: auto
+    group: auto
+    mode: "0750"
+  when: wgbroker_parker.get('enabled', false) | bool
+
+# git init has no module (the git module clones, it does not create), and a
+# local registry needs no clone.
+- name: Initialise the parker registry repository
+  become: true
+  become_user: auto
+  ansible.builtin.command:  # noqa: command-instead-of-module
+    cmd: git init --initial-branch=main .
+    chdir: "{{ wgbroker_parker_repo }}"
+    creates: "{{ wgbroker_parker_repo }}/.git"
+  when: wgbroker_parker.get('enabled', false) | bool
+
+- name: Set the parker registry commit identity
+  become: true
+  become_user: auto
+  community.general.git_config:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    repo: "{{ wgbroker_parker_repo }}"
+    scope: local
+  loop:
+    - { name: user.name, value: "auto" }
+    - { name: user.email, value: "auto@{{ dns_searchdomains }}" }
+  when: wgbroker_parker.get('enabled', false) | bool
+
+- name: Install parker garbage collector
+  ansible.builtin.template:
+    src: parker_gc.py.j2
+    dest: /home/auto/parker_gc.py
+    mode: "0744"
+    owner: auto
+    group: auto
+  when: wgbroker_parker.get('enabled', false) | bool
+        and wgbroker_parker.get('gc', {}).get('enabled', false) | bool
+
+- name: Install crontab for the parker garbage collector
+  ansible.builtin.cron:
+    name: "parker gc"
+    user: auto
+    minute: "30"
+    hour: "4"
+    job: /usr/bin/python3 /home/auto/parker_gc.py
+  when: wgbroker_parker.get('enabled', false) | bool
+        and wgbroker_parker.get('gc', {}).get('enabled', false) | bool

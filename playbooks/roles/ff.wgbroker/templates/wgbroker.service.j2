@@ -7,7 +7,7 @@ After=network.target
 User=auto
 WorkingDirectory=/home/auto
 Environment="PYTHONUNBUFFERED=TRUE"
-ExecStart=/home/auto/.local/bin/gunicorn -b [::]:8000 broker:app
+ExecStart=/usr/bin/gunicorn -b [::]:8000 broker:app
 Restart=always
 
 [Install]

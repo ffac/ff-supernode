@@ -1,0 +1,53 @@
+---
+# Parker config service (GET /config). Leave wgbroker_parker undefined (or
+# without enabled: true) to keep the broker at add_key only. Example:
+#
+#   wgbroker_parker:
+#     enabled: true
+#     prefix6: "2a03:2260:3006:8000::/56"   # pool; id -> 2*id-th /64 (+ sibling for xlat)
+#     range4: "10.80.96.0/22"               # community constant, only its length sizes the LAN DHCP
+#     address4: "10.80.96.1"
+#     mtu: 1406
+#     wg_keepalive: 25
+#     retry: 120
+#     xlat: true                            # omit in a config change to drop 464XLAT per fleet
+#     usign_secret: |                       # key content, `usign -G -p parker.pub -s parker.sec`
+#       untrusted comment: ...
+#       rWV2...
+#     lock_path: /home/auto/.parker-allocation.lock
+#     push_flag: /home/auto/.parker-push-pending
+#     rate_limit:
+#       burst: 10                           # new nodes per source per window
+#       window: 3600
+#       daily: 200                          # new nodes per day overall
+#     concentrators:
+#       - id: 1
+#         pubkey: "<wg pubkey of sn01 wg-nodes>"
+#         endpoint: "01.wg-node.freifunk-aachen.de:10000"
+#         address6: "2a03:2260:3006:8000::"
+#         address4: "10.80.96.2"
+#       - id: 2
+#         ...
+#     gc:
+#       enabled: false                      # cron on the broker host
+#       dry_run: true                       # log what would be deleted
+#       never_handshaked_days: 7
+#       silent_days: 90
+wgbroker_parker: {}
+
+# Registry for the parker records (pubkey -> id -> concentrators) and the
+# gateway status files. Its own repository, not the batman peer list: parker
+# keys must not live in a tree that every node registration rewrites, and
+# the concentrator reads it on a minute schedule of its own.
+# Empty remote = local only: the broker commits and never pulls or pushes,
+# so the commits on this host are the audit log.
+wgbroker_parker_repo: /var/lib/parker/registry
+wgbroker_parker_repo_remote: ""
+
+# Where the role writes wgbroker_parker.usign_secret (usign/signify key
+# content) and the tool the broker signs /config with. Debian ships OpenBSD
+# signify as signify-openbsd and has no usign package; the signature format
+# and the key files are the same, so a node's usign verifies either. Unlike
+# usign, signify insists that a secret key file be named *.sec.
+wgbroker_parker_secret_key: /home/auto/usign/parker.sec
+wgbroker_parker_signer: signify-openbsd
