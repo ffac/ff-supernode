@@ -94,6 +94,29 @@ To remove domains, it is suggested to `rm /etc/systemd/network/*` the file.
 
 MAC addresses are not allowed to start with FF - systemd-networkd complains about such interfaces with `Could not join netdev: Provided Ethernet address is not unicast`
 
+## Distribution upgrade
+
+`playbooks/dist_upgrade.yml` upgrades a host in place to the next Debian release
+(`debian_upgrade_release`, default `trixie`). It runs against one host at a time
+(`serial: 1`) and refuses to start without an explicit confirmation:
+
+```
+ansible-playbook playbooks/dist_upgrade.yml --limit sn02 -e debian_upgrade_confirm=true
+ansible-playbook playbooks/supernode.yml     --limit sn02 --diff
+```
+
+Order of operations per host: safety checks (confirmation, release, free space,
+pending reboot), etckeeper commit, package state snapshot in
+`/root/dist-upgrade/`, switching only the Debian mirrors to the new release,
+`apt upgrade --without-new-pkgs`, `apt full-upgrade`, reboot. Third party
+repositories (e.g. ISC Kea from cloudsmith) keep their old suite until
+`supernode.yml` rewrites them, so a broken role shows up instead of being hidden
+behind a broken repository.
+
+Useful knobs: `debian_upgrade_max_removals` (default 30, aborts before removing
+more), `debian_upgrade_autoremove`, `debian_upgrade_reboot`. The upgrade is not
+reversible - take a snapshot of the VM first.
+
 ## Roles - Supernode
 
 * ff.mesh_batman - configures batman
