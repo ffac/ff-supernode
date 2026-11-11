@@ -1,3 +1,25 @@
+{%- macro rule(cmd, spec) -%}
+{{ cmd }} -w -C {{ spec }} 2>/dev/null || {{ cmd }} -w -A {{ spec }}
+{%- endmacro -%}
+{%- set ns = namespace(lines = []) -%}
+{%- if bat_clamp_mss | default(False) -%}
+{%-   set ns.lines = ns.lines + ["ExecStart=/bin/sh -c '" ~ rule('iptables', 'FORWARD -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1240') ~ "'"] -%}
+{%-   set ns.lines = ns.lines + ["ExecStart=/bin/sh -c '" ~ rule('ip6tables', 'FORWARD -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1220') ~ "'"] -%}
+{%- endif -%}
+{%- for interface in networkd_interfaces | default([]) -%}
+{%-   if interface.nat4_bgp | default(False) -%}
+{%-     set ns.lines = ns.lines + ["ExecStart=/bin/sh -c '" ~ rule('iptables -t nat', 'POSTROUTING -s 10.0.0.0/8 -o ' ~ interface.name ~ ' -j SNAT --to-source ' ~ (public_ffrl_ipv4.split('/') | first)) ~ "'"] -%}
+{%-   endif -%}
+{%-   if interface.nat4 | default(False) -%}
+{%-     set ns.lines = ns.lines + ["ExecStart=/bin/sh -c '" ~ rule('iptables -t nat', 'POSTROUTING -o ' ~ interface.name ~ ' -j MASQUERADE') ~ "'"] -%}
+{%-   endif -%}
+{%-   if interface.nat6 | default(False) -%}
+{%-     set ns.lines = ns.lines + ["ExecStart=/bin/sh -c '" ~ rule('ip6tables -t nat', 'POSTROUTING -o ' ~ interface.name ~ ' -j MASQUERADE') ~ "'"] -%}
+{%-   endif -%}
+{%- endfor -%}
+{%- if ns.lines | length == 0 -%}
+{%-   set ns.lines = ["ExecStart=/bin/true"] -%}
+{%- endif -%}
 [Unit]
 Description=Set NAT Masquerade in iptables
 After=network-online.target
@@ -5,22 +27,16 @@ After=network-online.target
 [Service]
 Type=oneshot
 
-ExecStart=echo "configuring NAT if needed"
-{% if bat_clamp_mss | default(False) %}
-ExecStart=iptables -A FORWARD -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1240
-ExecStart=ip6tables -A FORWARD -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --set-mss 1220
-{% endif %}
-{% for interface in networkd_interfaces | default([]) %}
-{% if interface.nat4_bgp | default(False) %}
-ExecStart=iptables -t nat -A POSTROUTING -s 10.0.0.0/8 -o {{ interface.name }} -j SNAT --to-source {{ public_ffrl_ipv4.split('/') | first }}
-{% endif %}
-{% if interface.nat4 | default(False) %}
-ExecStart=iptables -A POSTROUTING -o {{ interface.name }} -j MASQUERADE -t nat
-{% endif %}
-{% if interface.nat6 | default(False) %}
-ExecStart=ip6tables -t nat -A POSTROUTING -o {{ interface.name }} -j MASQUERADE
-{% endif %}
-{% endfor %}
+# The unit is a oneshot without RemainAfterExit, so it is dead after every run
+# and systemd starts it again on the next playbook run. Every rule is therefore
+# checked with -C first: re-running adds nothing, and a ruleset that was flushed
+# (for example by a reboot) is restored.
+#
+# Duplicates left behind by the old -A-only version are not removed here.
+#
+# A Type=oneshot unit without ExecStart is refused by systemd, so a host that
+# needs no rules at all still gets a no-op instead of an invalid unit file.
+{{ ns.lines | join('\n') }}
 
 [Install]
 WantedBy=multi-user.target
