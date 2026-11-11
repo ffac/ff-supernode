@@ -1,0 +1,241 @@
+---
+# In-place distribution upgrade of a supernode (e.g. bookworm -> trixie).
+#
+# Deliberately kept out of supernode.yml: it is a one-shot operation with two
+# apt phases and a reboot in the middle, and it must run against exactly one
+# host at a time so the mesh keeps working.
+#
+# Usage:
+#   ansible-playbook playbooks/dist_upgrade.yml --limit sn02 -e debian_upgrade_confirm=true
+#   ansible-playbook playbooks/supernode.yml   --limit sn02 --diff
+#
+# Only the Debian mirrors are switched to the new release. Repositories of
+# third parties (e.g. ISC Kea from cloudsmith) keep their suite until the
+# roles in supernode.yml rewrite them, so a failing role is visible instead of
+# being hidden behind a broken repository during the upgrade itself.
+
+- name: Upgrade a host to the next Debian release
+  hosts: supernodes
+  serial: 1
+  any_errors_fatal: true
+  become: true
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+    NEEDRESTART_MODE: a
+    APT_LISTCHANGES_FRONTEND: none
+  vars:
+    debian_upgrade_from: "{{ ansible_distribution_release }}"
+    debian_upgrade_release: trixie
+    # safety latch: the play refuses to do anything without it
+    debian_upgrade_confirm: false
+    # abort instead of silently removing half the system
+    # a bookworm -> trixie upgrade legitimately removes the old t64 libraries
+    debian_upgrade_max_removals: 30
+    debian_upgrade_min_free_bytes: 2147483648
+    debian_upgrade_reboot: true
+    # old kernels and libraries only, never anything that is still needed
+    debian_upgrade_autoremove: false
+    debian_mirror_pattern: "deb\\.debian\\.org|security\\.debian\\.org|ftp\\.debian\\.org|debian\\.net/debian"
+
+  pre_tasks:
+    - name: "Require an explicit confirmation"
+      ansible.builtin.assert:
+        that: "debian_upgrade_confirm | bool"
+        fail_msg: >-
+          Refusing to upgrade {{ inventory_hostname }}. Run again with
+          -e debian_upgrade_confirm=true and --limit <one host>.
+        quiet: true
+
+    - name: "Check that the target release is not the current one"
+      ansible.builtin.assert:
+        that:
+          - "ansible_distribution == 'Debian'"
+          - "debian_upgrade_from != debian_upgrade_release"
+        fail_msg: >-
+          {{ inventory_hostname }} runs {{ ansible_distribution }}
+          {{ debian_upgrade_from }}, target release is {{ debian_upgrade_release }}.
+        quiet: true
+
+    - name: "Check free space for the upgrade"
+      ansible.builtin.assert:
+        that: "debian_upgrade_root_free | int > debian_upgrade_min_free_bytes | int"
+        fail_msg: >-
+          Only {{ (debian_upgrade_root_free | int / 1073741824) | round(1) }} GiB
+          free on /, at least
+          {{ (debian_upgrade_min_free_bytes | int / 1073741824) | round(1) }} GiB needed.
+      vars:
+        debian_upgrade_root_free: >-
+          {{ (ansible_mounts | selectattr('mount', 'equalto', '/') | list | first).size_available }}
+
+    - name: "Check for a pending reboot"
+      ansible.builtin.stat:
+        path: "/run/reboot-required"
+      register: "rebootrequired"
+      check_mode: false
+
+    - name: "Reboot into a clean state before upgrading"
+      ansible.builtin.reboot:
+        msg: "Rebooting before the distribution upgrade (pending reboot)"
+        reboot_timeout: 600
+      when: "rebootrequired.stat.exists"
+
+    - name: "Import pre_task etckeeper"
+      ansible.builtin.import_tasks: "include/etckeeper_pre.yml"
+      tags: [always]
+
+    - name: "Record the package state before the upgrade"
+      ansible.builtin.shell: |
+        set -e
+        mkdir -p /root/dist-upgrade
+        dpkg --get-selections > /root/dist-upgrade/selections-before-{{ debian_upgrade_release }}
+        apt-mark showmanual > /root/dist-upgrade/manual-before-{{ debian_upgrade_release }}
+        uname -r > /root/dist-upgrade/kernel-before-{{ debian_upgrade_release }}
+      args:
+        creates: "/root/dist-upgrade/selections-before-{{ debian_upgrade_release }}"
+
+  tasks:
+    - name: "Find Debian source files of the current release"
+      ansible.builtin.shell: >-
+        grep -lE '({{ debian_mirror_pattern }})' /etc/apt/sources.list
+        /etc/apt/sources.list.d/* 2>/dev/null |
+        xargs -r grep -lE '(^|[^a-z-]){{ debian_upgrade_from }}([^a-z-]|$)'
+      register: "debian_sources"
+      changed_when: false
+      check_mode: false
+      failed_when: "debian_sources.rc not in [0, 123]"
+
+    - name: "Switch the Debian sources to {{ debian_upgrade_release }}"
+      ansible.builtin.replace:
+        path: "{{ item }}"
+        regexp: >-
+          (?<![a-z-]){{ debian_upgrade_from }}
+          (-security|-updates|-backports|-proposed-updates)?(?![a-z-])
+        replace: "{{ debian_upgrade_release }}\\1"
+      loop: "{{ debian_sources.stdout_lines }}"
+      when: "debian_sources.stdout_lines | length > 0"
+
+    - name: "Fail if a Debian mirror still points at the old release"
+      ansible.builtin.shell: >-
+        grep -HnE '({{ debian_mirror_pattern }})' /etc/apt/sources.list
+        /etc/apt/sources.list.d/* 2>/dev/null |
+        grep -E '(^|[^a-z-]){{ debian_upgrade_from }}([^a-z-]|$)' || true
+      register: "debian_sources_leftover"
+      changed_when: false
+      check_mode: false
+
+    - name: "Abort on sources that were not switched"
+      ansible.builtin.assert:
+        that: "debian_sources_leftover.stdout | length == 0"
+        fail_msg: >-
+          Debian mirrors still use {{ debian_upgrade_from }}:
+          {{ debian_sources_leftover.stdout_lines | join(', ') }}
+
+    - name: "Update the apt cache for the new release"
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: "Keep the existing configuration files during the upgrade"
+      ansible.builtin.copy:
+        dest: "/etc/apt/apt.conf.d/99dist-upgrade"
+        mode: "0644"
+        content: |
+          // written by playbooks/dist_upgrade.yml - keeps local configs, never
+          // asks, retries transient mirror failures
+          Dpkg::Options {
+             "--force-confdef";
+             "--force-confold";
+          };
+          Acquire::Retries "3";
+
+    - name: "Simulate the upgrade"
+      ansible.builtin.command: "apt-get --simulate dist-upgrade"  # noqa: command-instead-of-module
+      register: "upgrade_simulation"
+      changed_when: false
+      check_mode: false
+
+    - name: "Count the removals of the simulated upgrade"
+      ansible.builtin.set_fact:
+        debian_upgrade_removals: >-
+          {{ upgrade_simulation.stdout_lines | select('match', '^Remv ') | list | length }}
+
+    - name: "Show the summary of the simulated upgrade"
+      ansible.builtin.debug:
+        msg: >-
+          {{ upgrade_simulation.stdout_lines | select('match', '^[0-9]+ upgraded') | list
+             or ['no summary line found'] }}
+
+    - name: "Show the packages the upgrade would remove"
+      ansible.builtin.debug:
+        msg: >-
+          {{ upgrade_simulation.stdout_lines | select('match', '^Remv ') | list
+             or ['none'] }}
+
+    - name: "Show the last packages the upgrade would install"
+      ansible.builtin.debug:
+        msg: >-
+          {{ (upgrade_simulation.stdout_lines | select('match', '^(Inst|Conf) ') | list)[-10:] }}
+
+    - name: "Abort if the upgrade would remove too many packages"
+      ansible.builtin.assert:
+        that: "debian_upgrade_removals | int <= debian_upgrade_max_removals | int"
+        fail_msg: >-
+          The upgrade would remove {{ debian_upgrade_removals }} packages
+          (limit {{ debian_upgrade_max_removals }}). Inspect
+          `apt-get --simulate dist-upgrade` on the host before raising the limit.
+
+    - name: "Upgrade the installed packages without pulling new ones"
+      ansible.builtin.command: "apt-get -y upgrade --without-new-pkgs"  # noqa: command-instead-of-module
+      register: "upgrade_phase1"
+      changed_when: "'0 upgraded, 0 newly installed' not in upgrade_phase1.stdout"
+      check_mode: false
+
+    - name: "Run the full upgrade"
+      ansible.builtin.command: "apt-get -y full-upgrade"  # noqa: command-instead-of-module
+      register: "upgrade_phase2"
+      changed_when: "'0 upgraded, 0 newly installed' not in upgrade_phase2.stdout"
+      check_mode: false
+
+    - name: "Check the package database"
+      ansible.builtin.command: "dpkg --audit"
+      register: "dpkg_audit"
+      changed_when: false
+      check_mode: false
+      failed_when: "dpkg_audit.rc != 0 or dpkg_audit.stdout | length > 0"
+
+    - name: "Remove obsolete packages"
+      ansible.builtin.command: "apt-get -y autoremove --purge"  # noqa: command-instead-of-module
+      register: "upgrade_autoremove"
+      changed_when: "'0 upgraded, 0 newly installed' not in upgrade_autoremove.stdout"
+      check_mode: false
+      when: "debian_upgrade_autoremove | bool"
+
+    - name: "Reboot into the new release"
+      ansible.builtin.reboot:
+        msg: "Rebooting after the upgrade to {{ debian_upgrade_release }}"
+        reboot_timeout: 900
+      when: "debian_upgrade_reboot | bool"
+
+    - name: "Report the new release"
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} now runs Debian {{ ansible_distribution_release }}
+          (kernel {{ ansible_kernel }}). Next: run
+          `ansible-playbook playbooks/supernode.yml --limit {{ inventory_hostname }} --diff`
+          and then check `systemctl --failed`, `batctl n` and `wg show`.
+
+    - name: "List failed units"
+      ansible.builtin.command: "systemctl --failed --no-legend"  # noqa: command-instead-of-module
+      register: "failed_units"
+      changed_when: false
+      check_mode: false
+      failed_when: false
+
+    - name: "Warn about failed units"
+      ansible.builtin.debug:
+        msg: "{{ failed_units.stdout_lines }}"
+      when: "failed_units.stdout_lines | length > 0"
+
+  post_tasks:
+    - name: "Import post_task etckeeper"
+      ansible.builtin.import_tasks: "include/etckeeper_post.yml"
+      tags: [always]
