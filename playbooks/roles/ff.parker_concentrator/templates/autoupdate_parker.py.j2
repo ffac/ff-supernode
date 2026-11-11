@@ -67,10 +67,23 @@ def prefixes_of(record):
 
 
 def current_routes():
+    """Routes in the table that belong to a node: the delegated /64s.
+
+    bird writes its own routes into the same table (the interface's /128 among
+    them) and puts back what is deleted, so anything that is not a /64 is not
+    ours to touch.
+    """
     out = subprocess.check_output(
         ["ip", "-6", "route", "show", "table", str(ROUTE_TABLE), "dev", IFACE]
     ).decode()
-    return {line.split()[0] for line in out.splitlines() if line}
+    routes = set()
+    for line in out.splitlines():
+        parts = line.split()
+        if not parts or "/" not in parts[0]:
+            continue
+        if int(parts[0].split("/")[1]) == parker_lib.DELEGATION_BITS:
+            routes.add(parts[0])
+    return routes
 
 
 def sync_peers(records):
@@ -87,6 +100,9 @@ def sync_peers(records):
             record = records[key]
             prefixes = prefixes_of(record)
             wg.set(IFACE, peer={"public_key": key, "allowed_ips": prefixes})
+            # Without this the route set below is empty on the pass that adds
+            # a peer, and every existing route would be deleted for a minute.
+            expected.update(prefixes)
             print(f"parker: added peer {key} id {record['id']} {prefixes}")
         for key in sorted(iface_keys & repo_keys):
             # Re-assert: the id (and with it the prefixes) of a record is

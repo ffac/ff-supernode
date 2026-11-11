@@ -45,8 +45,9 @@ RECORDS_SUBDIR = "parker"
 STATUS_SUBDIR = "parker-status"
 
 # A delegated unit is one /64; every id owns range6 and the xlat sibling,
-# so it consumes two of them.
-_DELEGATION_BITS = 64
+# so it consumes two of them. Public because the concentrator's reconciler
+# needs it to tell its own routes from bird's in the shared table.
+DELEGATION_BITS = 64
 
 
 class ParkerError(Exception):
@@ -177,15 +178,15 @@ def load_records(repo_dir):
 
 def _pool_network(prefix6):
     net = ip_network(prefix6)
-    if net.prefixlen > _DELEGATION_BITS:
-        raise ValueError(f"{prefix6}: pool is smaller than one /{_DELEGATION_BITS}")
+    if net.prefixlen > DELEGATION_BITS:
+        raise ValueError(f"{prefix6}: pool is smaller than one /{DELEGATION_BITS}")
     return net
 
 
 def id_capacity(prefix6):
     """Number of ids the pool holds; ids 1..capacity-1 are allocatable, 0 is infra."""
     net = _pool_network(prefix6)
-    return net.num_addresses // (2 ** (_DELEGATION_BITS + 1))
+    return net.num_addresses // (2 ** (DELEGATION_BITS + 1))
 
 
 def id_to_prefixes(prefix6, node_id):
@@ -196,10 +197,10 @@ def id_to_prefixes(prefix6, node_id):
     config change, not a migration of records.
     """
     net = _pool_network(prefix6)
-    capacity = net.num_addresses // (2 ** _DELEGATION_BITS)
+    capacity = net.num_addresses // (2 ** DELEGATION_BITS)
     if node_id < 1 or 2 * node_id + 1 >= capacity:
         raise PoolExhausted(f"id {node_id} does not fit into {prefix6}")
-    step = 2**_DELEGATION_BITS
+    step = 2**DELEGATION_BITS
     base = int(net.network_address) + 2 * node_id * step
     return f"{IPv6Address(base)}/64", f"{IPv6Address(base + step)}/64"
 
