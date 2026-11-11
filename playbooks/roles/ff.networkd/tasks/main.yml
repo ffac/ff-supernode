@@ -66,7 +66,7 @@
     state: link
     force: "yes"
 - name: Install iface configs
-  register: restartnetworkd
+  register: networkd_iface_configs
   ansible.builtin.template:
     src: 1x-iface.network.j2
     dest: /etc/systemd/network/10-{{ interface.name }}.network
@@ -75,7 +75,7 @@
     loop_var: interface
 
 - name: Install iface link config
-  register: restartnetworkd
+  register: networkd_iface_links
   ansible.builtin.template:
     src: 1x-iface.link.j2
     dest: /etc/systemd/network/10-{{ interface.name }}.link
@@ -85,7 +85,7 @@
   when: interface.fixed_mac | default('', true) | length > 0
 
 - name: Remove fixed mac config
-  register: restartnetworkd
+  register: networkd_removed_mac_links
   ansible.builtin.file:
     path: "/etc/systemd/network/10-{{ interface.name }}.link"
     state: "absent"
@@ -98,7 +98,10 @@
   ansible.builtin.service:
     name: systemd-networkd
     state: restarted
-  when: restartnetworkd is changed
+  when: >-
+    networkd_iface_configs is changed or
+    networkd_iface_links is changed or
+    networkd_removed_mac_links is changed
 
 - name: Directly restart resolved
   ansible.builtin.service:
