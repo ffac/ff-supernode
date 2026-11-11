@@ -1,0 +1,28 @@
+---
+# Parked (routed wireguard uplink) concentrator side. The broker assigns
+# prefixes; this role applies them to one wireguard interface.
+parker_iface: wg-nodes
+
+# Registry the broker writes (pubkey -> id -> concentrators), read here every
+# minute. Unset remote = the registry is local to this host, nothing to pull.
+parker_repo: /var/lib/parker/registry
+parker_repo_remote: ""
+
+parker_listen_port: 10000
+
+# Pool the broker allocates from; both must use the same value so the
+# reconciler derives the same prefixes the nodes were told.
+parker_prefix6: ""
+
+# This concentrator's address on the tunnel, the concentrators[].address6
+# the broker sends (a /128 is enough - only point-to-point peers use it).
+parker_address6: ""
+parker_privatekey: ""
+
+# Table the delegated /64s are routed in. supernode.yml exports table 42
+# into BGP; main works for a plain router.
+parker_route_table: "main"
+
+# Publish handshake liveness into the registry so the broker-side garbage
+# collector can tell dead nodes from alive ones.
+parker_gc_publish: false

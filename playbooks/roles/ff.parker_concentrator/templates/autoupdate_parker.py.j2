@@ -1,0 +1,213 @@
+#!/usr/bin/env python3
+"""Apply parker node records from the registry to the concentrator interface.
+
+Runs as root from cron; git operations demote to the ``auto`` user, wireguard
+and route changes need root. Mirrors what autoupdate_wg.py does for the
+batman-side wg-<dom> interfaces, with two differences:
+
+* AllowedIPs are the delegated prefixes from the registry instead of a
+  key-derived link-local address, so they are asserted together with the
+  route on every pass.
+* With parker_gc_publish the latest handshake per node is committed to
+  parker-status/ so the broker-side GC can also see nodes that only ever
+  reach this one gateway.
+
+A record conflict stops all changes: better stale peers than routing two
+nodes' client prefixes to the same /63.
+"""
+
+import os
+import re
+import subprocess
+import sys
+
+sys.path.insert(0, "/usr/local/lib/parker")
+
+import parker_lib  # noqa: E402
+from pyroute2 import WireGuard  # noqa: E402
+
+IFACE = "{{ parker_iface }}"
+REPO = {{ parker_repo | tojson }}
+SYNC = {{ 'True' if (parker_repo_remote | default('')) else 'False' }}
+PREFIX6 = "{{ parker_prefix6 }}"
+ROUTE_TABLE = {{ parker_route_table | tojson }}
+GC_PUBLISH = {{ parker_gc_publish | default(false) | bool | ternary('True', 'False') }}
+HOSTNAME = "{{ inventory_hostname }}"
+
+git = parker_lib.demote_runner("auto")
+
+DAY = 86400
+
+
+def peer_keys():
+    out = subprocess.check_output(["wg", "show", IFACE]).decode()
+    return re.findall(r"^peer:\s+(\S+)$", out, re.MULTILINE)
+
+
+def last_handshakes():
+    out = subprocess.check_output(
+        ["wg", "show", IFACE, "latest-handshakes"]
+    ).decode()
+    found = {}
+    for line in out.splitlines():
+        pubkey, _, stamp = line.partition("\t")
+        stamp = stamp.strip()
+        if pubkey and stamp.isdigit():
+            found[pubkey] = int(stamp)
+    return found
+
+
+def prefixes_of(record):
+    """The two delegated /64s of a record, or [] if its id is out of pool."""
+    try:
+        return list(parker_lib.id_to_prefixes(PREFIX6, record["id"]))
+    except parker_lib.PoolExhausted:
+        print(f"parker: id {record['id']} outside {PREFIX6}, skipping")
+        return []
+
+
+def current_routes():
+    out = subprocess.check_output(
+        ["ip", "-6", "route", "show", "table", str(ROUTE_TABLE), "dev", IFACE]
+    ).decode()
+    return {line.split()[0] for line in out.splitlines() if line}
+
+
+def sync_peers(records):
+    """Add/remove wireguard peers; return the set of expected prefixes."""
+    iface_keys = set(peer_keys())
+    repo_keys = set(records)
+    expected = set()
+
+    with WireGuard() as wg:
+        for key in sorted(iface_keys - repo_keys):
+            wg.set(IFACE, peer={"public_key": key, "remove": True})
+            print(f"parker: removed peer {key} from {IFACE}")
+        for key in sorted(repo_keys - iface_keys):
+            record = records[key]
+            prefixes = prefixes_of(record)
+            wg.set(IFACE, peer={"public_key": key, "allowed_ips": prefixes})
+            print(f"parker: added peer {key} id {record['id']} {prefixes}")
+        for key in sorted(iface_keys & repo_keys):
+            # Re-assert: the id (and with it the prefixes) of a record is
+            # only ever rewritten by the GC and a re-registration, but a
+            # hand-run `wg` command must not survive a minute.
+            prefixes = prefixes_of(records[key])
+            wg.set(IFACE, peer={"public_key": key, "allowed_ips": prefixes})
+            expected.update(prefixes)
+    return expected
+
+
+def sync_routes(expected):
+    """Routes are what makes a prefix reachable; keep them in lockstep."""
+    present = current_routes()
+    for prefix in sorted(expected - present):
+        subprocess.run(
+            ["ip", "-6", "route", "replace", prefix, "dev", IFACE,
+             "table", str(ROUTE_TABLE), "proto", "static"],
+            check=True,
+        )
+        print(f"parker: route {prefix} -> {IFACE} table {ROUTE_TABLE}")
+    for prefix in sorted(present - expected):
+        subprocess.run(
+            ["ip", "-6", "route", "del", prefix, "dev", IFACE,
+             "table", str(ROUTE_TABLE)],
+            check=False,
+        )
+        print(f"parker: removed route {prefix} from table {ROUTE_TABLE}")
+
+
+def publish_status():
+    """Commit this gateway's handshake day-buckets, push if we are ahead."""
+    samples = {
+        pubkey: stamp // DAY
+        for pubkey, stamp in last_handshakes().items()
+        if stamp > 0
+    }
+    relpath = parker_lib.status_relpath(HOSTNAME)
+    fullpath = f"{REPO}/{relpath}"
+
+    if not samples:
+        # Nothing this gateway can report: a concentrator without peers keeps
+        # no file, and one whose peers all left does not leave stale buckets
+        # behind. The gc reads "no bucket" as "never handshaked here".
+        tracked = parker_lib.git(
+            git, REPO, "ls-files", "--error-unmatch", "--", relpath, check=False
+        )
+        if tracked.returncode != 0:
+            return
+        if os.path.exists(fullpath):
+            os.unlink(fullpath)
+        parker_lib.git(git, REPO, "rm", "--quiet", "--", relpath)
+        parker_lib.git(
+            git, REPO, "commit", "-m", f"parker status: {HOSTNAME}: no peers"
+        )
+        return
+
+    new_content = parker_lib.format_status(samples)
+
+    changed = True
+    try:
+        with open(fullpath, encoding="utf-8") as handle:
+            changed = handle.read() != new_content
+    except FileNotFoundError:
+        pass
+
+    if changed:
+        # This script runs as root, the repository belongs to auto: without
+        # the chown the next git commit as auto would meet a root directory
+        # and a root file in a tree it is supposed to own.
+        import grp
+        import pwd
+
+        status_dir = f"{REPO}/{parker_lib.STATUS_SUBDIR}"
+        os.makedirs(status_dir, exist_ok=True)
+        with open(fullpath, "w", encoding="utf-8") as handle:
+            handle.write(new_content)
+        uid = pwd.getpwnam("auto").pw_uid
+        gid = grp.getgrnam("auto").gr_gid
+        os.chown(status_dir, uid, gid)
+        os.chown(fullpath, uid, gid)
+        parker_lib.git(git, REPO, "add", "--", relpath)
+        parker_lib.git(git, REPO, "commit", "-m", f"parker status: {HOSTNAME}")
+
+    ahead = subprocess.run(
+        ["git", "-C", REPO, "rev-list", "--max-count=1", "@{u}..HEAD"],
+        capture_output=True,
+    )
+    if SYNC and ahead.stdout.strip():
+        try:
+            parker_lib.git(git, REPO, "push")
+        except parker_lib.GitError as exc:
+            print(f"parker: status push failed, retrying next pass: {exc}")
+
+
+def main():
+    # A failed pull must not stop us: the local records are stale but safe,
+    # and aborting here would drop live peers instead. A local-only registry
+    # has nothing to pull in the first place.
+    if SYNC:
+        proc = subprocess.run(
+            ["git", "-C", REPO, "pull", "--rebase", "--autostash"],
+            capture_output=True,
+        )
+        if proc.returncode != 0:
+            print("parker: pull failed: "
+                  + proc.stderr.decode(errors="replace").strip())
+
+    try:
+        records = parker_lib.load_records(REPO)
+    except parker_lib.RecordConflict as exc:
+        print(f"parker: refusing to touch {IFACE}: {exc}")
+        return 1
+
+    expected = sync_peers(records)
+    sync_routes(expected)
+    # Nothing to publish into before the broker has created the registry.
+    if GC_PUBLISH and os.path.isdir(os.path.join(REPO, ".git")):
+        publish_status()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

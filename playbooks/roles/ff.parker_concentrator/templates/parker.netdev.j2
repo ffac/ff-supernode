@@ -1,0 +1,8 @@
+# {{ ansible_managed }}
+[NetDev]
+Name={{ parker_iface }}
+Kind=wireguard
+
+[WireGuard]
+PrivateKeyFile=/etc/wireguard/privatekey-{{ parker_iface }}
+ListenPort={{ parker_listen_port }}
