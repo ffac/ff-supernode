@@ -1,0 +1,167 @@
+---
+
+- name: Assert that the required jool variables are set
+  ansible.builtin.assert:
+    that:
+      - jool_pool4_prefix | length > 0
+      - jool_port_range is match('^[0-9]{1,5}-[0-9]{1,5}$')
+    fail_msg: >-
+      jool_pool4_prefix is required (e.g. the host's public IPv4 /32) and
+      jool_port_range must be "<first>-<last>", got
+      "{{ jool_port_range }}". The range has no default on purpose: what is
+      safe depends on this host's ephemeral range and on which ports already
+      listen here.
+    quiet: true
+
+- name: Assert that jool_port_range describes a real range
+  vars:
+    jool_port_first: "{{ jool_port_range.split('-')[0] | int }}"
+    jool_port_last: "{{ jool_port_range.split('-')[1] | int }}"
+  ansible.builtin.assert:
+    that:
+      - jool_port_first > 0
+      - jool_port_last < 65536
+      - jool_port_first < jool_port_last
+    fail_msg: >-
+      jool_port_range "{{ jool_port_range }}" must satisfy
+      1 <= first < last <= 65535, got {{ jool_port_first }}-{{ jool_port_last }}.
+    quiet: true
+
+- name: Read the host's ephemeral port range
+  # The host opens its own connections (apt, monitoring, ...) with a source
+  # port from here, on the same pool4 address that the NAT64 masks to. An
+  # overlap lets a host socket and a translated flow claim the same port, and
+  # one of them receives the other's replies.
+  ansible.builtin.slurp:
+    src: /proc/sys/net/ipv4/ip_local_port_range
+  register: jool_ephemeral_ports
+
+- name: Assert that jool_port_range stays clear of the ephemeral range
+  vars:
+    jool_ephemeral: "{{ (jool_ephemeral_ports.content | b64decode).split() | map('int') | list }}"
+    jool_port_first: "{{ jool_port_range.split('-')[0] | int }}"
+    jool_port_last: "{{ jool_port_range.split('-')[1] | int }}"
+  ansible.builtin.assert:
+    that:
+      - jool_port_last < jool_ephemeral[0] or jool_port_first > jool_ephemeral[1]
+    fail_msg: >-
+      jool_port_range {{ jool_port_range }} overlaps this host's ephemeral range
+      {{ jool_ephemeral[0] }}-{{ jool_ephemeral[1] }}
+      (/proc/sys/net/ipv4/ip_local_port_range): the host and the NAT64 would
+      draw from the same ports on the same address. Put the range outside it,
+      as the concentrator group vars do.
+    quiet: true
+
+- name: Find local sockets that listen inside jool_port_range
+  # Jool handles packets addressed to the pool4 address in PRE_ROUTING, before
+  # local delivery: a service bound there would see translated traffic it never
+  # asked for, and drop it for having no session. A wildcard bind owns the port
+  # on the pool4 address as well, so it counts too. Read-only, and also wanted
+  # under --check, hence check_mode: false.
+  ansible.builtin.shell:
+    executable: /bin/bash
+    cmd: |
+      set -o pipefail
+      { ss -H -lnt; ss -H -lnu; } | awk -v range="{{ jool_port_range }}" -v pool4="{{ jool_pool4_prefix | regex_replace('/.*$', '') }}" '
+        BEGIN { split(range, r, "-"); lo = r[1] + 0; hi = r[2] + 0 }
+        {
+          n = split($4, a, ":"); port = a[n] + 0
+          addr = substr($4, 1, length($4) - length(a[n]) - 1)
+          if (port >= lo && port <= hi &&
+              (addr == "0.0.0.0" || addr == "*" || addr == "[::]" || addr == "::" || addr == pool4))
+            print
+        }'
+  register: jool_listener_hits
+  changed_when: false
+  check_mode: false
+
+- name: Assert that no local socket listens inside jool_port_range
+  ansible.builtin.assert:
+    that:
+      - jool_listener_hits.stdout | trim | length == 0
+    fail_msg: >-
+      jool_port_range {{ jool_port_range }} contains ports this host already
+      listens on:
+      {{ jool_listener_hits.stdout | trim }}
+      Jool catches packets to the pool4 address before local delivery, so those
+      services would stop seeing their own traffic. Move the range, or move the
+      service.
+    quiet: true
+
+- name: Install jool and the headers its dkms module builds against
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+    name:
+      - jool-dkms
+      - jool-tools
+      - linux-headers-amd64
+
+- name: Install iptables for the NAT64 source guard
+  when: jool_source6_allow | length > 0
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+    name: iptables
+
+- name: Install the NAT64 source guard script
+  when: jool_source6_allow | length > 0
+  ansible.builtin.template:
+    src: jool-guard.sh.j2
+    dest: /usr/local/sbin/jool-guard.sh
+    mode: "0755"
+
+- name: Install the NAT64 source guard unit
+  when: jool_source6_allow | length > 0
+  ansible.builtin.template:
+    src: jool-guard.service.j2
+    dest: /etc/systemd/system/jool-guard.service
+    mode: "0644"
+
+- name: Apply the source guard before NAT64 starts translating
+  when: jool_source6_allow | length > 0
+  # No handler needed: the guard is a oneshot without RemainAfterExit, so it is
+  # dead after every run and systemd executes it again here, picking up a
+  # rewritten unit file and any change to the allow list. Starting a dead
+  # oneshot is a change every single run, which would hide real ones.
+  ansible.builtin.systemd:
+    name: jool-guard.service
+    state: started
+    enabled: true
+    daemon_reload: true
+  changed_when: false
+
+- name: Ensure the jool config directory
+  # jool-tools ships no /etc/jool; the packaged unit skips itself while
+  # /etc/jool/jool.conf is missing, so it stays dead without this
+  ansible.builtin.file:
+    path: /etc/jool
+    state: directory
+    mode: "0755"
+
+- name: Write jool config
+  # no notify: the config is applied by the task below, in this same run. A
+  # handler would only fire at the end of the play, and one still queued when
+  # a later task fails is dropped while the file on disk is already new - the
+  # next run then finds the file unchanged, notifies nothing, and stays green
+  # with an instance that never saw the change.
+  ansible.builtin.template:
+    src: jool.conf.j2
+    dest: /etc/jool/jool.conf
+    mode: "0644"
+
+- name: Enable and start the NAT64 instance
+  ansible.builtin.systemd:
+    name: jool.service
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Apply the config to the running NAT64 instance
+  # `jool file handle` swaps the config of the running instance and keeps its
+  # state. A `systemctl restart` is not an equivalent: the packaged unit stops
+  # the instance with `jool ... instance remove`, which throws away every
+  # dynamic BIB entry and session. Always apply, so a play that died after
+  # writing the file still converges on the next run.
+  ansible.builtin.command: jool file handle /etc/jool/jool.conf
+  changed_when: false
