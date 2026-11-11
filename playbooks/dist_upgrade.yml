@@ -24,7 +24,7 @@
     NEEDRESTART_MODE: a
     APT_LISTCHANGES_FRONTEND: none
   vars:
-    debian_upgrade_from: "{{ ansible_distribution_release }}"
+    debian_upgrade_from: "{{ ansible_facts['distribution_release'] }}"
     debian_upgrade_release: trixie
     # safety latch: the play refuses to do anything without it
     debian_upgrade_confirm: false
@@ -218,7 +218,7 @@
     - name: "Report the new release"
       ansible.builtin.debug:
         msg: >-
-          {{ inventory_hostname }} now runs Debian {{ ansible_distribution_release }}
+          {{ inventory_hostname }} now runs Debian {{ ansible_facts['distribution_release'] }}
           (kernel {{ ansible_kernel }}). Next: run
           `ansible-playbook playbooks/supernode.yml --limit {{ inventory_hostname }} --diff`
           and then check `systemctl --failed`, `batctl n` and `wg show`.
