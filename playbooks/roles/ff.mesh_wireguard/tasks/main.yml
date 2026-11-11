@@ -1,12 +1,5 @@
 ---
 
-- name: Add backports repository
-  ansible.builtin.apt_repository:
-    repo: deb http://deb.debian.org/debian {{ ansible_distribution_release }}-backports main
-    state: present
-    update_cache: true
-  when: 'ansible_distribution_release == "buster"'
-
 - name: Install wireguard
   ansible.builtin.apt:
     name: wireguard
