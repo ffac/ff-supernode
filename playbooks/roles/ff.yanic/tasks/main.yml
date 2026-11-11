@@ -24,7 +24,7 @@
 - name: Install yanic
   become: true
   become_user: "{{ yanic_user }}"
-  ansible.builtin.script: /usr/bin/go install {{ yanic_repo_path }}@{{ yanic_tag }}
+  ansible.builtin.command: /usr/bin/go install {{ yanic_repo_path }}@{{ yanic_tag }}
 
 - name: Ensure persist directory, if needed
   ansible.builtin.file:
