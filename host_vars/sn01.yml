@@ -25,6 +25,9 @@ networkd_interfaces:
     # their VXLAN local/remote endpoint, so they are stacked here and
     # nowhere else
     vxlan: true
+    # addresses, gateway and DNS are static, there is no router
+    # advertisement to wait for - waiting for one holds the link ~13 s
+    no_radv_accept: True
     addresses:
       - 5.145.135.151/27
       - 2a00:fe0:43::201/64
@@ -53,6 +56,8 @@ networkd_interfaces:
       - from: "10.0.0.0/11"
         table: 42
   - name: ens19
+    # IPv4 only, no router advertisement on this link either
+    no_radv_accept: True
     nat4_bgp: True
     addresses:
       - 100.64.17.151/24
