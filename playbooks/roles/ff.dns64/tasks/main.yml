@@ -1,0 +1,62 @@
+---
+
+- name: Assert dns64 variables
+  ansible.builtin.assert:
+    that:
+      - dns64_networks | length > 0
+      - "'::/0' not in dns64_networks"
+      - "'0.0.0.0/0' not in dns64_networks"
+    fail_msg: >-
+      dns64_networks is required and must not contain "::/0" or
+      "0.0.0.0/0": DNS64 may only answer clients whose IPv4 transits our
+      NAT64. An open resolver on a supernode uplink hands synthesised AAAA to
+      anyone and breaks Happy Eyeballs for native-IPv4 clients.
+    quiet: true
+
+- name: Install bind9
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+    name:
+      - bind9
+      # dig is how the instance gets checked from a client's point of view;
+      # the Debian split keeps it out of the server package
+      - bind9-dnsutils
+
+- name: Configure the DNS64 instance
+  ansible.builtin.template:
+    src: named.conf.options.j2
+    dest: /etc/bind/named.conf.options
+    mode: "0644"
+    # the fragment is a complete config on its own (acl + options), so
+    # checkconf can parse it before it replaces the working file
+    validate: /usr/bin/named-checkconf %s
+
+- name: Keep named.conf.local empty
+  # Debian's named.conf includes this file, and a pure DNS64 instance defines
+  # no zones of its own. The package ships only a comment in it - there is no
+  # default-zones file any more - so writing it keeps whatever a previous use
+  # left there from being served.
+  ansible.builtin.copy:
+    content: "// managed by ansible - no zones on a pure DNS64 instance\n"
+    dest: /etc/bind/named.conf.local
+    mode: "0644"
+
+- name: Enable and start bind9
+  ansible.builtin.systemd:
+    name: named.service
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Reapply the configuration to the running instance
+  # apt starts named with Debian's own options before the template lands, and
+  # a handler only fires when a file changes. A play that aborts before the
+  # end therefore leaves a daemon that never read our config, and the next
+  # run has nothing to notify: on sn03 that meant no dns64 and no ACL at all.
+  # Reloading on every run converges the daemon onto the file on disk, and
+  # `rndc reload` re-reads it without dropping the listening sockets.
+  ansible.builtin.systemd:
+    name: named.service
+    state: reloaded
+  changed_when: false
