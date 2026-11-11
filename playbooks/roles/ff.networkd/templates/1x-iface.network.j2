@@ -32,7 +32,7 @@ VLAN=vlan{{ vlan.id }}
 {% endif %}
 {% endfor %}
 {% endif %}
-{% if 'supernodes' in group_names %}
+{% if interface.vxlan | default(false) %}
 {% for domain in domains | default( [] ) %}
 VXLAN=vx-{{ domain.id }}-server
 {% endfor %}

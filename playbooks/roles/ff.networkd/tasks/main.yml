@@ -65,6 +65,25 @@
     dest: /etc/resolv.conf
     state: link
     force: "yes"
+# networkd hands a stacked netdev to exactly one link: whichever requests it
+# first. Every other requester keeps waiting for a netdev "that is not
+# created", never reaches the configured state, and systemd-networkd-wait-online
+# then blocks for its full timeout on every boot. So the netdevs may be
+# declared by exactly one interface.
+- name: "Check that exactly one interface carries the VXLAN netdevs"
+  when: "'supernodes' in group_names"
+  ansible.builtin.assert:
+    that: >-
+      networkd_interfaces | selectattr('vxlan', 'defined') | selectattr('vxlan')
+      | list | length == 1
+    fail_msg: >-
+      Interfaces with vxlan: true on {{ inventory_hostname }}:
+      {{ networkd_interfaces | selectattr('vxlan', 'defined') | selectattr('vxlan')
+         | map(attribute='name') | list }}. Exactly one interface must carry
+      the vx-*-server netdevs, otherwise systemd-networkd-wait-online hangs
+      for two minutes at every boot.
+    quiet: true
+
 - name: Install iface configs
   register: networkd_iface_configs
   ansible.builtin.template:

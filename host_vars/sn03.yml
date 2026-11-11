@@ -21,6 +21,10 @@ networkd_interfaces:
         table: 42
   - name: eth0
     fixed_mac: bc:24:11:cb:d3:58
+    # the vx-*-server tunnels use this interface's public addresses as
+    # their VXLAN local/remote endpoint, so they are stacked here and
+    # nowhere else
+    vxlan: true
     addresses:
       - 5.145.135.153/27
       - 2a00:fe0:43::203/64
