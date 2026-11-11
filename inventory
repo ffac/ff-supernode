@@ -8,6 +8,9 @@ all:
     sn02:
       ansible_host: 02.wg-node.freifunk-aachen.de
       ansible_user: ffac
+    sn03:
+      ansible_host: 03.wg-node.freifunk-aachen.de
+      ansible_user: ffac
     monitor:
       ansible_host: monitor.freifunk-aachen.de
       ansible_user: ffac
@@ -34,6 +37,7 @@ supernodes:
   hosts:
     sn01:
     sn02:
+    sn03:
 
 monitoring:
   hosts:

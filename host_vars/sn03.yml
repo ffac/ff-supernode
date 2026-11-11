@@ -1,6 +1,6 @@
 ---
 servername: sn03
-sn: 01
+sn: 03
 
 public_ffrl_ipv4: "185.66.193.45/32"
 public_ffrl_ipv6: "2a03:2260:3006:300::/56"
@@ -36,6 +36,7 @@ networkd_interfaces:
     dns_server:
       - 9.9.9.9
       - "2a03:2260:3006::53"
+    nat4_bgp: True
     nat4: False
     nat6: False
     static_routes:
@@ -57,8 +58,11 @@ networkd_interfaces:
   - name: ens19
     # IPv4 only, no router advertisement on this link either
     no_radv_accept: True
+    nat4_bgp: True
     addresses:
       - 100.64.17.153/24
+
+bat_clamp_mss: True
 
 bird:
   router_id: 5.145.135.153
