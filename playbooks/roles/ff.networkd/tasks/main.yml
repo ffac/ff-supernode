@@ -82,7 +82,7 @@
   loop: "{{ networkd_interfaces }}"
   loop_control:
     loop_var: interface
-  when: item.fixed_mac | default(false)
+  when: interface.fixed_mac | default('', true) | length > 0
 
 - name: Remove fixed mac config
   register: restartnetworkd
@@ -92,7 +92,7 @@
   loop: "{{ networkd_interfaces }}"
   loop_control:
     loop_var: interface
-  when: not item.fixed_mac | default(true)
+  when: interface.fixed_mac | default('', true) | length == 0
 
 - name: Directly restart networkd
   ansible.builtin.service:

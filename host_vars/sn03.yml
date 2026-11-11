@@ -20,7 +20,7 @@ networkd_interfaces:
       - from: "{{ public_ffrl_ipv6 }}"
         table: 42
   - name: eth0
-    fixed_mac: bc:24:11:cb:d3 :58
+    fixed_mac: bc:24:11:cb:d3:58
     addresses:
       - 5.145.135.153/27
       - 2a00:fe0:43::203/64
