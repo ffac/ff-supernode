@@ -197,3 +197,14 @@ yanic_central: "true"
 # parker uplink (playbooks/parker.yml): the address NAT64 masks translated
 # flows with - eth0's public IPv4, whose return path is already routed here
 parker_pool4: "5.145.135.153/32"
+
+# Parker config service. Only a test placement: the broker role runs from
+# playbooks/monitoring.yml on `monitor`, and without enabled: true this
+# block changes nothing on sn03. usign_secret is the vaulted key content
+# the role writes to wgbroker_parker_secret_key.
+wgbroker_parker:
+  usign_secret: "{{ parker_usign_secret }}"
+
+# site.conf sends both broker endpoints (add_key, /config) here, so the role
+# brings its own nginx vhost and certificate (playbooks/broker.yml).
+wgbroker_vhost: 03.wg-node.freifunk-aachen.de

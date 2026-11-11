@@ -196,3 +196,94 @@
     job: /usr/bin/python3 /home/auto/parker_gc.py
   when: wgbroker_parker.get('enabled', false) | bool
         and wgbroker_parker.get('gc', {}).get('enabled', false) | bool
+
+# Public front, only when the role owns the vhost (wgbroker_vhost). Tagged so
+# the certificate and the vhost can be brought up before the broker itself.
+
+- name: Install nginx and certbot
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+    name:
+      - nginx
+      - certbot
+      - cron
+  when: wgbroker_vhost | length > 0
+  tags: [broker_vhost]
+
+- name: Create the ACME webroot
+  ansible.builtin.file:
+    path: "{{ wgbroker_acme_webroot }}"
+    state: directory
+    mode: "0755"
+  when: wgbroker_vhost | length > 0
+  tags: [broker_vhost]
+
+- name: Check for an existing broker certificate
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/live/{{ wgbroker_vhost }}/fullchain.pem
+  register: wgbroker_cert
+  when: wgbroker_vhost | length > 0
+  tags: [broker_vhost]
+
+# Only until there is a certificate: the https vhost below carries the same
+# port 80 block, and two templates on one file means both report changed on
+# every run and nginx reloads for nothing.
+- name: Install the broker vhost (http, for the certificate)
+  ansible.builtin.template:
+    src: wgbroker-vhost-http.conf.j2
+    dest: /etc/nginx/sites-available/wgbroker.conf
+    mode: "0644"
+  notify: Reload nginx
+  when:
+    - wgbroker_vhost | length > 0
+    - not wgbroker_cert.stat.exists
+  tags: [broker_vhost]
+
+- name: Enable the broker vhost
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/wgbroker.conf
+    dest: /etc/nginx/sites-enabled/wgbroker.conf
+    state: link
+  notify: Reload nginx
+  when: wgbroker_vhost | length > 0
+  tags: [broker_vhost]
+
+- name: Obtain the broker certificate
+  ansible.builtin.command:
+    cmd: >-
+      certbot certonly --webroot -w {{ wgbroker_acme_webroot }}
+      -d {{ wgbroker_vhost }} --non-interactive --agree-tos
+      --email {{ info_mail }}
+    creates: /etc/letsencrypt/live/{{ wgbroker_vhost }}/fullchain.pem
+  when: wgbroker_vhost | length > 0
+  tags: [broker_vhost]
+
+- name: Check for the broker certificate
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/live/{{ wgbroker_vhost }}/fullchain.pem
+  register: wgbroker_cert
+  when: wgbroker_vhost | length > 0
+  tags: [broker_vhost]
+
+# Only with a certificate on disk: an ssl server block that points at a
+# missing file keeps nginx from starting at all.
+- name: Install the broker vhost (https)
+  ansible.builtin.template:
+    src: wgbroker-vhost.conf.j2
+    dest: /etc/nginx/sites-available/wgbroker.conf
+    mode: "0644"
+  notify: Reload nginx
+  when:
+    - wgbroker_vhost | length > 0
+    - wgbroker_cert.stat.exists
+  tags: [broker_vhost]
+
+- name: Set up certificate renewal
+  ansible.builtin.cron:
+    name: certbot-renewal
+    job: "/bin/bash -lc '/usr/bin/certbot -q renew'"
+    minute: "0"
+    hour: "14"
+  when: wgbroker_vhost | length > 0
+  tags: [broker_vhost]

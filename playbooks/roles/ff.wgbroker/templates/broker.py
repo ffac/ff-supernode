@@ -10,6 +10,7 @@ from pathlib import Path
 
 import parker_lib
 from flask import Flask, Response, jsonify, request
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 
 REPO = "/etc/wireguard/peers-wg"
@@ -36,6 +37,14 @@ PARKER_SIGN_KEY = {{ wgbroker_parker_secret_key | tojson }}
 PARKER_SIGNER = {{ wgbroker_parker_signer | tojson }}
 
 app = Flask(__name__)
+# nginx is the only front (gunicorn listens on localhost): without the
+# header from the vhost every node looks like 127.0.0.1, and the per-source
+# rate limit turns into one global bucket.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1)
+# Flask's logger inherits WARNING from the root logger, so the one line per
+# /config request (who, which version, which mtu) would never reach the
+# journal.
+app.logger.setLevel("INFO")
 # TODO(ruairi): Refactor load_config to return Dataclass.
 
 WG_PUBKEY_PATTERN = re.compile(r"^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw480]=$")

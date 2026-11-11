@@ -51,3 +51,10 @@ wgbroker_parker_repo_remote: ""
 # usign, signify insists that a secret key file be named *.sec.
 wgbroker_parker_secret_key: /home/auto/usign/parker.sec
 wgbroker_parker_signer: signify-openbsd
+
+# Public name the broker answers on. When set, the role installs its own
+# nginx vhost with a Let's Encrypt certificate and keeps it renewed; empty
+# leaves the front to the host's own nginx (so `monitor`, which runs
+# ff.nginx/ff.certbot, does not grow a second vhost).
+wgbroker_vhost: ""
+wgbroker_acme_webroot: /var/www/html
