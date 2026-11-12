@@ -52,7 +52,7 @@ protocol kernel {
 
 {% for route in bird.staticroutes | default([]) %}
 protocol static {{ route.name }} {
-    import all;
+    {% if not route.is_ipv6 is defined or route.is_ipv6 %}ipv6 {% else %}ipv4 {% endif %}{ import all; };
     {% for rule in route.rules %}
     {{ rule }};
     {% endfor %}

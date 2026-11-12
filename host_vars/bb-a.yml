@@ -103,6 +103,7 @@ bird:
             authentication: "none"
   staticroutes:
     - name: uplink_hostroute
+      is_ipv6: no
       rules:
         - "route 185.66.193.46/32 via 100.64.17.157"
   filter:
