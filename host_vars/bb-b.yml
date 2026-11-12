@@ -53,7 +53,7 @@ gre_tunnel:
     independent: yes
     ttl: 64
     networks:
-      - address: 100.64.5.49/31
+      - address: 100.64.5.249/31
       - address: 2a03:2260:0:2fd::2/64
       - address: fe80::591:878e/64
         scope: link
@@ -86,7 +86,7 @@ gre_tunnel:
     independent: yes
     ttl: 64
     networks:
-      - address: 100.64.5.253/31
+      - address: 100.64.5.245/31
       - address: 2a03:2260:0:2fb::2/64
       - address: fe80::591:878e/64
         scope: link
@@ -109,51 +109,51 @@ peerings:
       - ffrl_exit
     default_local_pref: 80
     description: "FFRL bb-a.ak.ber"
-    neighbor: 100.64.5.230
+    neighbor: 100.64.5.242
     remote_as: 201701
-    source_address: 100.64.5.231
+    source_address: 100.64.5.243
   - name: bb_ber_b
     protocol: bgp
     templates:
       - ffrl_exit
     description: "FFRL bb-b.ak.ber"
     default_local_pref: 80
-    neighbor: 100.64.5.236
+    neighbor: 100.64.5.248
     remote_as: 201701
-    source_address: 100.64.5.237
+    source_address: 100.64.5.249
   - name: bb_dus_a
     protocol: bgp
     templates:
       - ffrl_exit
     description: "FFRL bb-a.ix.dus"
     default_local_pref: 100
-    neighbor: 100.64.5.234
+    neighbor: 100.64.5.246
     remote_as: 201701
-    source_address: 100.64.5.235
+    source_address: 100.64.5.247
   - name: bb_dus_b
     protocol: bgp
     templates:
       - ffrl_exit
     description: "FFRL bb-b.ix.dus"
     default_local_pref: 101
-    neighbor: 100.64.5.240
+    neighbor: 100.64.5.252
     remote_as: 201701
-    source_address: 100.64.5.241
+    source_address: 100.64.5.253
   - name: bb_fra_a
     protocol: bgp
     templates:
       - ffrl_exit
     description: "FFRL bb-a.fra3.fra"
     default_local_pref: 90
-    neighbor: 100.64.5.232
+    neighbor: 100.64.5.244
     remote_as: 201701
-    source_address: 100.64.5.233
+    source_address: 100.64.5.245
   - name: bb_fra_b
     protocol: bgp
     templates:
       - ffrl_exit
     description: "FFRL bb-b.fra3.fra"
     default_local_pref: 90
-    neighbor: 100.64.5.238
+    neighbor: 100.64.5.250
     remote_as: 201701
-    source_address: 100.64.5.239
+    source_address: 100.64.5.251
