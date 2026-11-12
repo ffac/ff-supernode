@@ -236,6 +236,76 @@ def test_build_config_xlat_kill_switch():
     assert "xlat_range6" not in parker_lib.build_config(cfg, PUBKEY, 1, NONCE)
 
 
+# --- respondd ----------------------------------------------------------------
+
+
+def deflate(payload):
+    """Raw deflate, the way respondd and yanic's respondd connection pack."""
+    import zlib
+
+    comp = zlib.compressobj(9, zlib.DEFLATED, -15)
+    return comp.compress(payload) + comp.flush()
+
+
+def nodeinfo(node_id="ea5981962ae4"):
+    return {"nodeinfo": {"node_id": node_id, "hostname": "ffac-parker"}}
+
+
+def test_node_address_is_the_first_host():
+    assert parker_lib.node_address("2a03:2260:3006:8018::/64") == \
+        "2a03:2260:3006:8018::1"
+    # id 0 is the concentrator's own /63, ids start at 1
+    assert parker_lib.node_address("2a03:2260:3006:8000::/64") == \
+        "2a03:2260:3006:8000::1"
+
+
+def test_respondd_query_asks_for_the_three_modules():
+    assert parker_lib.RESPOND_QUERY.split()[0] == b"GET"
+    assert set(parker_lib.RESPOND_QUERY.split()[1:]) == {
+        b"nodeinfo", b"statistics", b"neighbours"
+    }
+    assert parker_lib.RESPOND_PORT == 1001
+
+
+def test_parse_respondd_accepts_a_node_answer():
+    import json
+
+    answer = nodeinfo()
+    answer["statistics"] = {"node_id": "ea5981962ae4", "clients": {"total": 3}}
+    response = parker_lib.parse_respondd(deflate(json.dumps(answer).encode()))
+    assert response["statistics"]["clients"]["total"] == 3
+    assert parker_lib.respondd_node_id(response) == "ea5981962ae4"
+
+
+def test_parse_respondd_rejects_plain_json():
+    # an answer that arrives uncompressed is foreign to both yanic and us
+    with pytest.raises(parker_lib.ParkerError, match="deflated"):
+        parker_lib.parse_respondd(b'{"nodeinfo":{"node_id":"ea5981962ae4"}}')
+
+
+def test_parse_respondd_rejects_a_missing_or_broken_node_id():
+    import json
+
+    for answer in ({"statistics": {"clients": 1}},
+                   nodeinfo(node_id="ea5981962ae"),
+                   nodeinfo(node_id="ZZZZZZZZZZZZ")):
+        with pytest.raises(parker_lib.ParkerError, match="node id"):
+            parker_lib.parse_respondd(deflate(json.dumps(answer).encode()))
+
+
+def test_parse_respondd_rejects_a_non_object():
+    with pytest.raises(parker_lib.ParkerError, match="JSON object"):
+        parker_lib.parse_respondd(deflate(b"[1, 2, 3]"))
+
+
+def test_respondd_node_id_survives_a_missing_module():
+    # yanic drops the modules whose id disagrees, so one present module names
+    # the node
+    answer = {"neighbours": {"node_id": "ea5981962ae4"}}
+    assert parker_lib.respondd_node_id(answer) == "ea5981962ae4"
+    assert parker_lib.respondd_node_id({}) is None
+
+
 # --- rate limiting -----------------------------------------------------------
 
 
