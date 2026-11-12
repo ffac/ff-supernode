@@ -30,16 +30,19 @@ the commits are the local audit log and nothing leaves the host.
 """
 
 import fcntl
+import json
 import os
 import re
 import subprocess
 import tempfile
 import threading
 import time
+import zlib
 from ipaddress import IPv6Address, ip_network
 
 PUBKEY_RE = re.compile(r"^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw480]=$")
 NONCE_RE = re.compile(r"^[0-9a-f]{32}$")
+NODE_ID_RE = re.compile(r"^[0-9a-f]{12}$")
 
 RECORDS_SUBDIR = "parker"
 STATUS_SUBDIR = "parker-status"
@@ -234,7 +237,7 @@ def build_config(pool_cfg, pubkey, node_id, nonce, now=None):
     per-link computation.
     """
     range6, xlat_range6 = id_to_prefixes(pool_cfg["prefix6"], node_id)
-    address6 = str(ip_network(range6)[1])
+    address6 = node_address(range6)
 
     conf = {
         "nonce": nonce,
@@ -260,6 +263,54 @@ def build_config(pool_cfg, pubkey, node_id, nonce, now=None):
     if pool_cfg.get("xlat", True):
         conf["xlat_range6"] = xlat_range6
     return conf
+
+
+# ---------------------------------------------------------------------------
+# respondd
+
+
+# The module list yanic asks for on a bat interface; a parker node answers the
+# same request over its tunnel.
+RESPOND_QUERY = b"GET nodeinfo statistics neighbours"
+RESPOND_PORT = 1001
+
+
+def node_address(range6):
+    """The node's own address inside its delegated /64 - always ::1."""
+    return str(ip_network(range6)[1])
+
+
+def respondd_node_id(response):
+    """The 12 hex digit node id from a decoded answer, or None.
+
+    yanic accepts an answer only when every module that is present carries the
+    same id, so a single module is enough to name the node.
+    """
+    for module in ("nodeinfo", "neighbours", "statistics"):
+        section = response.get(module)
+        if isinstance(section, dict):
+            node_id = section.get("node_id")
+            if isinstance(node_id, str) and NODE_ID_RE.match(node_id):
+                return node_id
+    return None
+
+
+def parse_respondd(payload):
+    """Decode one respondd answer: raw deflate, JSON object, valid node id.
+
+    The node answers in exactly the format yanic's own collector produces, so
+    the concentrator forwards the payload unchanged. Decoding here only keeps
+    junk out of the monitor's log and tells us which node stayed silent.
+    """
+    try:
+        response = json.loads(zlib.decompress(payload, -zlib.MAX_WBITS))
+    except (zlib.error, ValueError) as exc:
+        raise ParkerError(f"not a deflated JSON answer: {exc}") from None
+    if not isinstance(response, dict):
+        raise ParkerError("answer is not a JSON object")
+    if respondd_node_id(response) is None:
+        raise ParkerError("answer carries no 12 digit node id")
+    return response
 
 
 # ---------------------------------------------------------------------------
