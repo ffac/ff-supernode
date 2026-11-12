@@ -134,12 +134,12 @@ template {{ template.protocol }} {% if template.name is defined %}{{ template.na
 {% if template.multihop is defined %}
     multihop {{ template.multihop }};
 {% endif %}
-{% if template.v4 %}
+{% if template.v4 is defined and template.v4 %}
     ipv4 {
 {{ template.v4 | indent( width=8, first=True) }}
     };
 {% endif %}
-{% if template.v6 %}
+{% if template.v6 is defined and template.v6 %}
     ipv6 {
 {{ template.v6 | indent( width=8, first=True) }}
     };
