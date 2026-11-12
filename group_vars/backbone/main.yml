@@ -11,9 +11,25 @@ bird:
         - "filter filter_kernel_v4"
     - is_ipv6: yes
       ip_table: 42
-      # bird_table: auxtable
       exports:
         - "filter filter_kernel_v6"
+    # The kernel's main table. A reply from the internet carries a source
+    # outside our prefixes, so the policy rule looks it up in main, and main
+    # has to know our /56s. bird attaches only one kernel protocol per table,
+    # hence the extra table: pipe_hostroute fills it from master6 through the
+    # hostroute_v6 filter.
+    - is_ipv6: yes
+      bird_table: auxtable6
+      exports:
+        - "all"
+  tables:
+    - name: auxtable6
+  pipes:
+    - name: pipe_hostroute
+      table: master6
+      peer_table: auxtable6
+      exports:
+        - "filter hostroute_v6"
   ospf:
     - version: v2
       name: IGP
@@ -90,14 +106,14 @@ bird:
         next hop self;
       next_hop: yes
       multihop: 64
-  protocols:
+  staticroutes:
+    # Only the backbone's own prefix. The 3006 /56s, the parker pool among
+    # them, are originated by their supernodes and arrive over OSPF: a
+    # backbone that loses its adjacency to a supernode then withdraws that
+    # /56 instead of announcing it into a reject route.
     - name: uplink_hostroute
-      type: static
-      body: |
-        import all;
-        route 2a03:2260:114:0100::/56 reject;
-        route 2a03:2260:3006:0100::/56 reject;
-        route 2a03:2260:3006:0200::/56 reject;
+      rules:
+        - "route 2a03:2260:114:0100::/56 reject"
   filter:
     - name: reject_internal_prefixes_v4
       default_accept: yes
@@ -122,7 +138,9 @@ bird:
     - name: filter_kernel_v6
       default_accept: yes
       rules:
-        - "if net ~ [2a00:fe0:43::/48+, 2a03:2260:3006:300::/56{56,64}] then reject;"
+        - "if net ~ [2a00:fe0:43::/48+] then reject;"
+        # announced to FFRL, never a forwarding entry
+        - "if proto = \"uplink_hostroute\" then reject;"
     - name: default_route_v4
       default_accept: no
       rules:
@@ -134,6 +152,16 @@ bird:
         - "if net ~ 185.66.193.44/32 then accept;"
         - "if net ~ 185.66.193.45/32 then accept;"
         - "if net ~ 185.66.193.46/32 then accept;"
+    - name: hostroute_v6
+      # what the kernel's main table gets (see the auxtable6 kernel above);
+      # a bare prefix matches its more specifics too
+      default_accept: no
+      rules:
+        - "if net ~ 2a03:2260:3006:0100::/56 then accept;"
+        - "if net ~ 2a03:2260:3006:0200::/56 then accept;"
+        - "if net ~ 2a03:2260:3006:0300::/56 then accept;"
+        - "if net ~ 2a03:2260:3006:8000::/56 then accept;"
+        - "if net ~ 2a03:2260:3006:a100::/56 then accept;"
   functions:
     - name: is_default_v4
       body: |
