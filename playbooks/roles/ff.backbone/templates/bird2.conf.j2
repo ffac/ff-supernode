@@ -44,12 +44,15 @@ protocol kernel {
 {% if kernel.bird_table is defined %}
     table {{ kernel.bird_table }};
 {%endif %}
+{% if kernel.learn is defined and kernel.learn %}
+    learn;
+{% endif %}
 }
 {% endfor %}
 
 {% for route in bird.staticroutes | default([]) %}
 protocol static {{ route.name }} {
-    import all;
+    {% if not route.is_ipv6 is defined or route.is_ipv6 %}ipv6 {% else %}ipv4 {% endif %}{ import all; };
     {% for rule in route.rules %}
     {{ rule }};
     {% endfor %}

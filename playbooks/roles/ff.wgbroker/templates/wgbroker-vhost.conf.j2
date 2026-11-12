@@ -1,0 +1,48 @@
+# Managed by the ff.wgbroker role.
+server {
+	listen 80;
+	listen [::]:80;
+	server_name {{ wgbroker_vhost }};
+
+	location /.well-known/acme-challenge/ {
+		root {{ wgbroker_acme_webroot }};
+	}
+
+	# The node-facing endpoints stay on plain HTTP: Gluon's busybox is built
+	# without TLS, so nodeconfig.sh cannot follow a redirect. The answer is
+	# signed and the request carries nothing but the node's public key; the
+	# nonce keeps a captured answer from being replayed.
+	location /config {
+		proxy_set_header Host $http_host;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_pass http://127.0.0.1:8000;
+	}
+
+	location /api/ {
+		proxy_set_header Host $http_host;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_pass http://127.0.0.1:8000;
+	}
+
+	location / {
+		return 301 https://$host$request_uri;
+	}
+}
+
+server {
+	listen 443 ssl http2;
+	listen [::]:443 ssl http2;
+	server_name {{ wgbroker_vhost }};
+
+	ssl_certificate /etc/letsencrypt/live/{{ wgbroker_vhost }}/fullchain.pem;
+	ssl_certificate_key /etc/letsencrypt/live/{{ wgbroker_vhost }}/privkey.pem;
+	ssl_trusted_certificate /etc/letsencrypt/live/{{ wgbroker_vhost }}/chain.pem;
+	ssl_stapling on;
+	ssl_stapling_verify on;
+
+	location / {
+		proxy_set_header Host $http_host;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_pass http://127.0.0.1:8000;
+	}
+}

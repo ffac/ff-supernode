@@ -1,0 +1,27 @@
+---
+# DNS64: recursive resolver that synthesises AAAA from A under
+# jool_pool6-style prefix. Only for clients whose IPv4 transits our NAT64 -
+# handing synthesised answers to native-IPv4 clients breaks Happy Eyeballs.
+# Therefore dns64_networks must be exactly the networks those clients come
+# from (for parker LANs: the delegated pool).
+
+dns64_prefix: "64:ff9b::/96"
+
+# Networks allowed to query and to receive synthesised answers. Required,
+# e.g. ["2a03:2260:3006:8000::/56"].
+dns64_networks: []
+
+dns64_forwarders:
+  - "2620:fe::fe"
+  - "9.9.9.9"
+
+# Listen addresses. Clients reach this via RDNSS, i.e. over IPv6; keeping v4
+# loopback-only avoids a stray v53 on the host's backbone interfaces.
+# The IPv6 wildcard is spelled "any", not "::": BIND reads a literal address
+# and skips it silently when it is not assigned here, which left the instance
+# without a single IPv6 socket on sn03 and would also hide any address added
+# after named started.
+dns64_listen_v6:
+  - "any"
+dns64_listen_v4:
+  - "127.0.0.1"

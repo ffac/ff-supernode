@@ -1,0 +1,9 @@
+# {{ ansible_managed }}
+[Match]
+Name={{ parker_iface }}
+
+[Network]
+Address={{ parker_address6.split('/')[0] }}/128
+# the concentrator is the other end of point-to-point tunnels, nothing
+# announces routes here
+IPv6AcceptRA=false

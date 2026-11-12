@@ -1,0 +1,38 @@
+// {{ ansible_managed }}
+// DNS64 for parker LANs only. Single-purpose instance: Debian's
+// named.conf includes this whole file, so the options block lives here and
+// everything zone-related stays empty.
+
+acl dns64_clients {
+{% for net in dns64_networks %}
+    {{ net }};
+{% endfor %}
+};
+
+options {
+	directory "/var/cache/bind";
+
+	recursion yes;
+	allow-recursion { dns64_clients; };
+	allow-query { dns64_clients; };
+
+	// synthesised AAAA records cannot carry RRSIGs, so this instance
+	// must not validate for its clients
+	dnssec-validation no;
+
+	// BIND >= 9.19 grammar: block statement. With the well-known /96 the
+	// default suffix embeds IPv4 addresses per RFC 6052, as the nodes expect.
+	dns64 {{ dns64_prefix }} {
+	};
+
+	forwarders {
+{% for fwd in dns64_forwarders %}
+		{{ fwd }};
+{% endfor %}
+	};
+
+	listen-on { {{ dns64_listen_v4 | join('; ') }}; };
+	listen-on-v6 { {{ dns64_listen_v6 | join('; ') }}; };
+
+	forward only;
+};

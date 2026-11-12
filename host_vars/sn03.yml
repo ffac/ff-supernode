@@ -55,6 +55,27 @@ networkd_interfaces:
         table: 42
       - from: "10.0.0.0/11"
         table: 42
+      # The parker pool is routed in bird's table 42, and the packets Jool
+      # translates back carry 64:ff9b:: as their source, so the `from` rules
+      # above never match them. Without this destination-based rule the kernel
+      # looks the pool up in main, finds no route there, and sends the return
+      # path to the backbone default instead of the tunnel.
+      - to: "{{ parker_pool6 }}"
+        table: 42
+        # clear of the auto-assigned block (3276x) and above the kernel's
+        # `from all lookup main` at 32766, which would otherwise win
+        priority: 32750
+      # ... and the forward direction needs the same push: traffic sourced
+      # from a pool address is the node talking to the outside world. The pool
+      # is announced to FFRL, not to the site uplink, so only the backbone link
+      # has a path back. Left to main the packet leaves via eth0 and the answer
+      # either never returns or is dropped as spoofed at the site uplink's
+      # ingress filter.
+      - from: "{{ parker_pool6 }}"
+        table: 42
+        # ahead of the `to` rule so a node-to-node flow uses one table either
+        # way, and still above `from all lookup main`
+        priority: 32749
   - name: ens19
     # IPv4 only, no router advertisement on this link either
     no_radv_accept: True
@@ -73,6 +94,15 @@ bird:
         - "filter filter_kernel_v4"
     - is_ipv6: yes
       ip_table: 42
+      # ff.parker_concentrator writes the delegated /64s into table 42 with
+      # `ip route replace`. bird ignores routes it did not install itself
+      # unless it is told to learn them: without this the prefixes sit in 42,
+      # reach neither master6 nor OSPF, and nothing forwards to them. The
+      # import filter keeps table 42 from feeding arbitrary routes into our
+      # announcements - only the parker pool is taken over.
+      learn: true
+      imports:
+        - "filter accept_parker_pool_v6"
       # bird_table: auxtable
       exports:
         - "filter filter_kernel_v6"
@@ -119,6 +149,17 @@ bird:
               dead: 20
               check: link
               authentication: "none"
+  staticroutes:
+    # Originate the parker pool as one aggregate, the way the bat /56 is
+    # originated from lo: accept_public_prefix_v6 carries it to the
+    # backbones over OSPF and they announce it to FFRL, which routes no
+    # longer prefix for us. Kept here rather than as a static on the
+    # backbones, so a backbone that loses its adjacency to sn03 withdraws
+    # the pool instead of blackholing it. In table 42 the node /64s shadow
+    # it; a free slot answers unreachable instead of looping to the default.
+    - name: parker_pool
+      rules:
+        - "route {{ parker_pool6 }} unreachable"
   filter:
     - name: reject_internal_prefixes_v4
       default_accept: yes
@@ -136,6 +177,13 @@ bird:
       default_accept: no
       rules:
         - "if net ~ [2a03:2260:3006::/48+] then accept;"
+    - name: accept_parker_pool_v6
+      # Import filter of the kernel protocol: the parker reconciler adds one
+      # /64 per node to table 42 without telling bird. `learn` picks them up,
+      # this filter decides which ones are ours.
+      default_accept: no
+      rules:
+        - "if net ~ [{{ parker_pool6 }}+] then accept;"
     - name: filter_kernel_v4
       default_accept: yes
       rules:
@@ -156,3 +204,60 @@ radv_announce_default: true
 #local_vxlan_supernode: 2a00:fe0:43::201
 #remote_vxlan_supernode: 2a00:fe0:43::202
 yanic_central: "true"
+
+# parker uplink (playbooks/parker.yml): the address NAT64 masks translated
+# flows with - eth0's public IPv4, whose return path is already routed here
+parker_pool4: "5.145.135.153/32"
+
+# This concentrator's end of the parker tunnels. The address sits in the id-0
+# /63 of the pool, the one slot the allocator never hands out, and the node
+# configures it as the peer of its own /128 - so it needs no route of its own.
+parker_address6: "2a03:2260:3006:8000::1/128"
+parker_privatekey: "{{ parker_sn03_privatekey }}"
+
+# Parker config service. The broker itself comes from playbooks/broker.yml;
+# `monitor` keeps its instance for images that still have
+# wg-broker.freifunk-aachen.de baked in. usign_secret is the vaulted key
+# content the role writes to wgbroker_parker_secret_key.
+#
+# Everything a node is told is in this block; the registry it builds starts
+# local to this host.
+wgbroker_parker:
+  enabled: true
+  usign_secret: "{{ parker_usign_secret }}"
+  prefix6: "{{ parker_pool6 }}"
+  # Community-wide client IPv4: no per-node assignment, so every node hands
+  # its clients an address out of this /22 and the first 16 are reserved for
+  # the routers themselves (clientaddr.lua). 10.80.96.0/22 is free in our
+  # network - the mesh carries no other client IPv4.
+  range4: "10.80.96.0/22"
+  address4: "10.80.96.1"
+  mtu: 1406
+  wg_keepalive: 25
+  retry: 120
+  # Omit xlat to fall back to routed IPv4 in the tunnel fleet-wide; the
+  # concentrator interface carries IPv6 only, so this stays on.
+  xlat: true
+  rate_limit:
+    burst: 10
+    window: 3600
+    daily: 200
+  # Both concentrators are always sent, so a node fails over on a stale
+  # handshake instead of waiting for a reflash. address4 is only read in the
+  # routed mode; under xlat the node ignores it.
+  concentrators:
+    - id: 1
+      pubkey: "7IRdL29opT9mPWqLL/BR2uOprNYa0Evh7zDUsiM6kzs="
+      endpoint: "03.wg-node.freifunk-aachen.de:10000"
+      address6: "2a03:2260:3006:8000::1"
+      address4: "10.80.96.1"
+  # Log-only for the first cycle, so we see what it would remove.
+  gc:
+    enabled: true
+    dry_run: true
+    never_handshaked_days: 7
+    silent_days: 90
+
+# site.conf sends both broker endpoints (add_key, /config) here, so the role
+# brings its own nginx vhost and certificate (playbooks/broker.yml).
+wgbroker_vhost: 03.wg-node.freifunk-aachen.de
