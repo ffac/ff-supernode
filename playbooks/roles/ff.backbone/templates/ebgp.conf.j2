@@ -3,5 +3,8 @@ protocol {{ peer.protocol }} {{ peer.name }} {% if peer.templates %}{% for templ
     description "{{ peer.description }}";
     neighbor {{ peer.neighbor }} as {{ peer.remote_as }};
     source address {{ peer.source_address }};
+{% if peer.default_local_pref is defined %}
+    default bgp_local_pref {{ peer.default_local_pref }};
+{% endif %}
 };
 {% endfor %}
