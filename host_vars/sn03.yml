@@ -149,6 +149,17 @@ bird:
               dead: 20
               check: link
               authentication: "none"
+  staticroutes:
+    # Originate the parker pool as one aggregate, the way the bat /56 is
+    # originated from lo: accept_public_prefix_v6 carries it to the
+    # backbones over OSPF and they announce it to FFRL, which routes no
+    # longer prefix for us. Kept here rather than as a static on the
+    # backbones, so a backbone that loses its adjacency to sn03 withdraws
+    # the pool instead of blackholing it. In table 42 the node /64s shadow
+    # it; a free slot answers unreachable instead of looping to the default.
+    - name: parker_pool
+      rules:
+        - "route {{ parker_pool6 }} unreachable"
   filter:
     - name: reject_internal_prefixes_v4
       default_accept: yes
