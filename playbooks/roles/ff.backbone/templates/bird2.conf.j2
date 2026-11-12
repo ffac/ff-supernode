@@ -15,6 +15,12 @@ protocol direct {
     ipv6;           # ... and to default IPv6 table
 }
 
+{% for function in bird.functions | default([]) %}
+function {{ function.name }}() {
+    {{ function.body }}
+};
+{% endfor %}
+
 {% for filter in bird.filter | default([]) %}
 filter {{ filter.name }} {
 {% for rule in filter.rules %}
@@ -28,15 +34,29 @@ filter {{ filter.name }} {
 };
 {% endfor %}
 
-{% for function in bird.functions | default([]) %}
-function {{ function.name }}() {
-    {{ function.body }}
-};
+{% for table in bird.tables | default([]) %}
+{% if not table.is_ipv6 is defined or table.is_ipv6 %}ipv6{% else %}ipv4{% endif %} table {{ table.name }};
+{% endfor %}
+
+{% for pipe in bird.pipes | default([]) %}
+protocol pipe {{ pipe.name }} {
+    table {{ pipe.table }};
+    peer table {{ pipe.peer_table }};
+{% for rule in pipe.imports | default(['none']) %}
+    import {{ rule }};
+{% endfor %}
+{% for rule in pipe.exports | default(['none']) %}
+    export {{ rule }};
+{% endfor %}
+}
 {% endfor %}
 
 {% for kernel in bird.kernel | default([]) %}
 protocol kernel {
     {% if not kernel.is_ipv6 is defined or kernel.is_ipv6 %}ipv6 {% else %}ipv4 {% endif %}{          # Connect protocol table by channel
+{% if kernel.bird_table is defined %}
+        table {{ kernel.bird_table }};
+{% endif %}
 {% for rule in kernel.imports | default([]) %}
         import {{ rule }};
 {% endfor %}
@@ -47,15 +67,12 @@ protocol kernel {
 {% if kernel.ip_table is defined %}
     kernel table {{ kernel.ip_table }};
 {%endif %}
-{% if kernel.bird_table is defined %}
-    table {{ kernel.bird_table }};
-{%endif %}
 }
 {% endfor %}
 
 {% for route in bird.staticroutes | default([]) %}
 protocol static {{ route.name }} {
-    import all;
+    {% if not route.is_ipv6 is defined or route.is_ipv6 %}ipv6 {% else %}ipv4 {% endif %}{ import all; };
     {% for rule in route.rules %}
     {{ rule }};
     {% endfor %}
