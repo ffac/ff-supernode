@@ -100,11 +100,14 @@ bird:
         export filter hostroute;
         export where is_our_prefix_v4();
         next hop self;
+      # The same announcement on every FFRL session, no prepending: FFRL
+      # takes the PoP nearest to where the traffic enters its network, and
+      # every PoP backs up the others. One export clause only - a second
+      # one would replace the first. Outbound is steered separately by
+      # default_local_pref on the peerings (DUS first).
       v6: |
         import all;
-        export where is_aachen_0114();
-        export where is_aachen_3006();
-        export where proto = "uplink_hostroute";
+        export where is_aachen_0114() || is_aachen_3006();
         next hop self;
       next_hop: yes
       multihop: 64
@@ -186,4 +189,6 @@ bird:
         return net ~ [ 2a03:2260:114:0100::/56{56,64} ];
     - name: is_aachen_3006
       body: |
-        return net ~ [ 2a03:2260:3006:0100::/56{56,64},	2a03:2260:3006:0200::/56{56,64} ];
+        return net ~ [ 2a03:2260:3006:0100::/56{56,64}, 2a03:2260:3006:0200::/56{56,64},
+                       2a03:2260:3006:0300::/56{56,64}, 2a03:2260:3006:a100::/56{56,64},
+                       2a03:2260:3006:8000::/56 ];
