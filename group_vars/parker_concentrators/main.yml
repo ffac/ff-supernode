@@ -21,6 +21,14 @@ parker_prefix6: "{{ parker_pool6 }}"
 # can also see nodes that only ever reach this one concentrator.
 parker_gc_publish: true
 
+# Hand each node's respondd answer to the monitoring yanic. The monitor cannot
+# poll a parker node itself: no batman interface to multicast into, and it
+# records this host as the node's address, so it never asks the node either.
+# The concentrator puts the request into the tunnel and forwards the answer
+# unchanged to the monitor's central yanic listener (its own respondd
+# connection does exactly the same for the bat nodes).
+parker_respondd_push: true
+
 # DNS64 must answer only clients whose IPv4 transits our NAT64: synthesised
 # AAAA for native-IPv4 clients breaks Happy Eyeballs, and an open resolver on
 # a supernode uplink is worse.

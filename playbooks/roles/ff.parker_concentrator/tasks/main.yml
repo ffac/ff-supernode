@@ -93,3 +93,28 @@
     # Cron would mail whatever the script prints; the journal is where we look
     # for what a pass did.
     job: /usr/local/sbin/autoupdate_parker.py 2>&1 | logger -t autoupdate_parker
+
+- name: Install parker respondd collector
+  ansible.builtin.template:
+    src: respondd_parker.py.j2
+    dest: /usr/local/sbin/respondd_parker.py
+    mode: "0755"
+    owner: root
+    group: root
+
+- name: Install crontab for the parker respondd collector
+  ansible.builtin.cron:
+    name: "push parker node data to the monitor"
+    user: root
+    minute: "*/1"
+    job: /usr/local/sbin/respondd_parker.py 2>&1 | logger -t parker_respondd
+  when: parker_respondd_push | bool
+
+- name: Remove the crontab when pushing is off
+  # A concentrator that was switched back off keeps no stale job that would
+  # keep feeding a monitor it no longer belongs to.
+  ansible.builtin.cron:
+    name: "push parker node data to the monitor"
+    user: root
+    state: absent
+  when: not (parker_respondd_push | bool)

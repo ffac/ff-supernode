@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+"""Forward parker node data to the monitor's yanic.
+
+A parker node is not part of a batman domain: its address sits in the parker
+pool behind wg-nodes, so neither this host's yanic nor the monitor's can reach
+it with a multicast request - and the monitor records this host as the node's
+address, so it never polls the node itself either.
+
+What does work is one unicast request over the tunnel: the node runs the same
+respondd as a Gluon node and answers on port 1001 with nodeinfo, statistics and
+neighbours. The answer is already raw-deflated JSON, the format yanic's own
+respondd database connection sends, so it is handed to the monitor unchanged;
+the monitor parses it like any local answer.
+
+Runs from cron every minute. A lost request costs one minute of freshness, not
+a marked-offline node: the monitor's offline_after is five minutes.
+"""
+
+import socket
+import sys
+import time
+
+sys.path.insert(0, "/usr/local/lib/parker")
+
+import parker_lib  # noqa: E402
+
+REPO = {{ parker_repo | tojson }}
+PREFIX6 = "{{ parker_prefix6 }}"
+MONITOR_HOST = "{{ parker_respondd_monitor }}"
+MONITOR_PORT = {{ parker_respondd_port | default(11001) | int }}
+TIMEOUT = {{ parker_respondd_timeout | default(5) | int }}
+
+
+def targets(records):
+    """address -> record for every record that fits into the pool."""
+    found = {}
+    for record in records.values():
+        try:
+            range6, _xlat = parker_lib.id_to_prefixes(PREFIX6, record["id"])
+        except parker_lib.PoolExhausted:
+            print(f"parker-respondd: id {record['id']} outside {PREFIX6}, skipping")
+            continue
+        found[parker_lib.node_address(range6)] = record
+    return found
+
+
+def ask(addresses):
+    """Send the module list to every node, collect answers until TIMEOUT."""
+    sock = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+    sock.settimeout(0.2)
+    answers = {}
+    try:
+        for address in addresses:
+            sock.sendto(
+                parker_lib.RESPOND_QUERY, (address, parker_lib.RESPOND_PORT)
+            )
+        deadline = time.monotonic() + TIMEOUT
+        while len(answers) < len(addresses) and time.monotonic() < deadline:
+            try:
+                payload, source = sock.recvfrom(65535)
+            except socket.timeout:
+                continue
+            address = source[0]
+            try:
+                parker_lib.parse_respondd(payload)
+            except parker_lib.ParkerError as exc:
+                print(f"parker-respondd: {address}: {exc}")
+                continue
+            if address not in addresses:
+                print(f"parker-respondd: {address}: answer nobody asked for")
+                continue
+            answers[address] = payload
+    finally:
+        sock.close()
+    return answers
+
+
+def forward(payloads):
+    """Hand every answer to the monitor unchanged."""
+    info = socket.getaddrinfo(
+        MONITOR_HOST, MONITOR_PORT, socket.AF_INET6, socket.SOCK_DGRAM
+    )
+    family, socktype, proto, _canon, sockaddr = info[0]
+    sock = socket.socket(family, socktype, proto)
+    try:
+        for payload in payloads:
+            sock.sendto(payload, sockaddr)
+    finally:
+        sock.close()
+
+
+def main():
+    try:
+        records = parker_lib.load_records(REPO)
+    except parker_lib.RecordConflict as exc:
+        # Same stance as the reconciler: report a broken registry instead of
+        # guessing around it, and send nothing this pass.
+        print(f"parker-respondd: refusing to read {REPO}: {exc}")
+        return 1
+
+    wanted = targets(records)
+    if not wanted:
+        return 0
+
+    try:
+        answers = ask(list(wanted))
+    except OSError as exc:
+        print(f"parker-respondd: cannot query the nodes: {exc}")
+        return 1
+
+    for address in (address for address in wanted if address not in answers):
+        print(f"parker-respondd: no answer from {address} (id {wanted[address]['id']})")
+
+    if answers:
+        try:
+            forward(list(answers.values()))
+        except OSError as exc:
+            # A monitor outage is not a reason to mail every minute; the
+            # monitor ages the nodes out on its own.
+            print(
+                f"parker-respondd: cannot reach {MONITOR_HOST}:{MONITOR_PORT}: {exc}"
+            )
+            return 1
+
+    print(
+        f"parker-respondd: {len(wanted)} nodes, {len(answers)} answered, "
+        f"{len(answers)} forwarded to {MONITOR_HOST}:{MONITOR_PORT}"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

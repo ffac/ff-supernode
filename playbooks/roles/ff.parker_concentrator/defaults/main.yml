@@ -26,3 +26,13 @@ parker_route_table: "main"
 # Publish handshake liveness into the registry so the broker-side garbage
 # collector can tell dead nodes from alive ones.
 parker_gc_publish: false
+
+# Hand each node's respondd answer to the monitoring yanic. The monitor cannot
+# poll a parker node (no batman, and it records this host as the node's
+# address), so the concentrator asks over the tunnel and forwards the answer
+# untouched to the monitor's central yanic listener.
+parker_respondd_push: false
+parker_respondd_monitor: "monitor.{{ dns_searchdomains }}"
+parker_respondd_port: 11001
+# Seconds a pass waits for answers before forwarding what arrived.
+parker_respondd_timeout: 5
