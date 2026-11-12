@@ -91,8 +91,10 @@ bird:
               dead: 20
               check: link
               authentication: "none"
+  # FFRL runs one IPv4 and one IPv6 session per tunnel, so do we: each
+  # template carries only its own address family.
   templates:
-    - name: ffrl_exit
+    - name: ffrl_exit_v4
       protocol: bgp
       local_asn: "{{ ffac_asn }}"
       v4: |
@@ -100,17 +102,20 @@ bird:
         export filter hostroute;
         export where is_our_prefix_v4();
         next hop self;
-      # The same announcement on every FFRL session, no prepending: FFRL
-      # takes the PoP nearest to where the traffic enters its network, and
-      # every PoP backs up the others. One export clause only - a second
-      # one would replace the first. Outbound is steered separately by
-      # default_local_pref on the peerings (DUS first).
+      multihop: 64
+    # The same announcement on every FFRL session, no prepending: FFRL
+    # takes the PoP nearest to where the traffic enters its network, and
+    # every PoP backs up the others. One export clause only - a second one
+    # would replace the first. Outbound is steered separately by
+    # default_local_pref on the peerings (DUS first). The neighbour sits
+    # on the tunnel's /64, so the session is direct, as live.
+    - name: ffrl_exit_v6
+      protocol: bgp
+      local_asn: "{{ ffac_asn }}"
       v6: |
         import all;
         export where is_aachen_0114() || is_aachen_3006();
         next hop self;
-      next_hop: yes
-      multihop: 64
   staticroutes:
     # Only the backbone's own prefix. The 3006 /56s, the parker pool among
     # them, are originated by their supernodes and arrive over OSPF: a

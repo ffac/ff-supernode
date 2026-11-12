@@ -106,54 +106,108 @@ peerings:
   - name: bb_ber_a
     protocol: bgp
     templates:
-      - ffrl_exit
+      - ffrl_exit_v4
     default_local_pref: 80
     description: "FFRL bb-a.ak.ber"
     neighbor: 100.64.5.242
     remote_as: 201701
     source_address: 100.64.5.243
+  - name: bb_ber_a_v6
+    protocol: bgp
+    templates:
+      - ffrl_exit_v6
+    default_local_pref: 80
+    description: "FFRL bb-a.ak.ber"
+    neighbor: 2a03:2260:0:2fa::1
+    remote_as: 201701
+    source_address: 2a03:2260:0:2fa::2
   - name: bb_ber_b
     protocol: bgp
     templates:
-      - ffrl_exit
+      - ffrl_exit_v4
     description: "FFRL bb-b.ak.ber"
     default_local_pref: 80
     neighbor: 100.64.5.248
     remote_as: 201701
     source_address: 100.64.5.249
+  - name: bb_ber_b_v6
+    protocol: bgp
+    templates:
+      - ffrl_exit_v6
+    description: "FFRL bb-b.ak.ber"
+    default_local_pref: 80
+    neighbor: 2a03:2260:0:2fd::1
+    remote_as: 201701
+    source_address: 2a03:2260:0:2fd::2
   - name: bb_dus_a
     protocol: bgp
     templates:
-      - ffrl_exit
+      - ffrl_exit_v4
     description: "FFRL bb-a.ix.dus"
     default_local_pref: 100
     neighbor: 100.64.5.246
     remote_as: 201701
     source_address: 100.64.5.247
+  - name: bb_dus_a_v6
+    protocol: bgp
+    templates:
+      - ffrl_exit_v6
+    description: "FFRL bb-a.ix.dus"
+    default_local_pref: 100
+    neighbor: 2a03:2260:0:2fc::1
+    remote_as: 201701
+    source_address: 2a03:2260:0:2fc::2
   - name: bb_dus_b
     protocol: bgp
     templates:
-      - ffrl_exit
+      - ffrl_exit_v4
     description: "FFRL bb-b.ix.dus"
     default_local_pref: 101
     neighbor: 100.64.5.252
     remote_as: 201701
     source_address: 100.64.5.253
+  - name: bb_dus_b_v6
+    protocol: bgp
+    templates:
+      - ffrl_exit_v6
+    description: "FFRL bb-b.ix.dus"
+    default_local_pref: 101
+    neighbor: 2a03:2260:0:2ff::1
+    remote_as: 201701
+    source_address: 2a03:2260:0:2ff::2
   - name: bb_fra_a
     protocol: bgp
     templates:
-      - ffrl_exit
+      - ffrl_exit_v4
     description: "FFRL bb-a.fra3.fra"
     default_local_pref: 90
     neighbor: 100.64.5.244
     remote_as: 201701
     source_address: 100.64.5.245
+  - name: bb_fra_a_v6
+    protocol: bgp
+    templates:
+      - ffrl_exit_v6
+    description: "FFRL bb-a.fra3.fra"
+    default_local_pref: 90
+    neighbor: 2a03:2260:0:2fb::1
+    remote_as: 201701
+    source_address: 2a03:2260:0:2fb::2
   - name: bb_fra_b
     protocol: bgp
     templates:
-      - ffrl_exit
+      - ffrl_exit_v4
     description: "FFRL bb-b.fra3.fra"
     default_local_pref: 90
     neighbor: 100.64.5.250
     remote_as: 201701
     source_address: 100.64.5.251
+  - name: bb_fra_b_v6
+    protocol: bgp
+    templates:
+      - ffrl_exit_v6
+    description: "FFRL bb-b.fra3.fra"
+    default_local_pref: 90
+    neighbor: 2a03:2260:0:2fe::1
+    remote_as: 201701
+    source_address: 2a03:2260:0:2fe::2
