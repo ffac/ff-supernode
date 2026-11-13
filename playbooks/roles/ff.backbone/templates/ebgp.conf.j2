@@ -1,7 +1,0 @@
-{% for peer in bird.peerings | default([]) %}
-protocol {{ peer.protocol }} {{ peer.name }} {% if peer.templates %}{% for template in peer.templates %}from {{ template }} {
-    description "{{ peer.description }}";
-    neighbor {{ peer.neighbor }} as {{ peer.remote_as }};
-    source address {{ peer.source_address }};
-};
-{% endfor %}
