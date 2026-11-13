@@ -13,7 +13,7 @@
     - role: ff.gretunnel
       tags: gretunnel
       become: true
-      when: gretunnel_configures is defined
+      when: gre_tunnel is defined
     - { role: ff.networkd, tags: networkd, become: true }
     - { role: ff.backbone, tags: backbone, become: true }
   post_tasks:
