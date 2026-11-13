@@ -1,14 +1,14 @@
 [NetDev]
-Name={{ item.netdev }}
+Name={{ tunnel.netdev }}
 Kind=gre
-MTUBytes={{ item.mtu_bytes }}
+MTUBytes={{ tunnel.mtu_bytes }}
 
 [Tunnel]
-Local={{ item.local_address }}
-Remote={{ item.remote_address }}
-{% if item.independent is defined and item.independent %}
+Local={{ tunnel.local_address }}
+Remote={{ tunnel.remote_address }}
+{% if tunnel.independent is defined and item.independent %}
 Independent=true
 {% endif %}
-{% if item.ttl is defined %}
-TTL={{ item.ttl }}
+{% if tunnel.ttl is defined %}
+TTL={{ tunnel.ttl }}
 {% endif %}

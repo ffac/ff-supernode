@@ -1,12 +1,12 @@
 [Match]
-Name={{ item.name}}
+Name={{ tunnel.netdev }}
 
 [Network]
 # for networkd >= 244 KeepConfiguration stops networkd from
 # removing routes on this interface when restarting
 KeepConfiguration=yes
 
-{% for network in item.networks %}
+{% for network in tunnel.networks %}
 [Address]
 Address={{ network.address }}
 {% if network.scope is defined %}

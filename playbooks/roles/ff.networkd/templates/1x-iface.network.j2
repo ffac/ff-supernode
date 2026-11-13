@@ -37,6 +37,11 @@ VLAN=vlan{{ vlan.id }}
 VXLAN=vx-{{ domain.id }}-server
 {% endfor %}
 {% endif %}
+
+{% for netdev in interface.tunnels | default( [] ) %}
+Tunnel={netdev}
+{% endfor %}
+
 {% if interface.dhcp is defined and interface.dhcp %}
 [DHCPv4]
 UseDNS=true
@@ -76,3 +81,7 @@ From={{ policy_rule.from }}
 Table={{ policy_rule.table }}
 
 {% endfor %}
+
+{% if interface.additional_config is defined %}
+{{ interface.additional_config }}
+{% endif %}
