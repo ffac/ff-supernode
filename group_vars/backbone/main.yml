@@ -1,5 +1,5 @@
 ---
-public_prefix: 185.193.64.40/29+
-internal_prefixes:
-  - 100.64.17.0/24+
-  - 5.145.135.128/27+
+public_prefix: 185.66.193.40/29
+
+# Which files/bird/ layer set this host gets (see ff.backbone).
+bird_profile: backbone
