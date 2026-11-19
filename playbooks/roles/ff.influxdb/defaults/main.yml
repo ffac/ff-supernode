@@ -1,6 +1,8 @@
 ---
 
 influxdb_bind_address: ":8086"
+# the role turns this off for a moment to (re)create the admin user
+influxdb_auth_enabled: true
 influxdb_username: "freifunk"
 influxdb_password: "freifunk"
 influxdb_database_name: "freifunk"

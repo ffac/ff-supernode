@@ -59,34 +59,67 @@
 #     dest: /etc/ferm/conf.d/50-influxdb.conf
 #   notify: reload ferm
 
-- name: Restart influxdb2 service
-  ansible.builtin.systemd:
-    name: influxdb
-    state: restarted
-    daemon_reload: true
-    enabled: true
-
-- name: Create ffac user - no auth on first install
-  community.general.influxdb_user:
-    login_username: "{{ influxdb_username }}"
-    login_password: "{{ influxdb_password }}"
-    user_name: "{{ influxdb_username }}"
-    user_password: "{{ influxdb_password }}"
-    admin: true
-
-- name: Generate config file - activate auth
+- name: Generate the influxdb config
   register: influx_configfile
   ansible.builtin.template:
     src: influxdb.conf.j2
     dest: /etc/influxdb/influxdb.conf
 
-- name: Restart influxdb2 service - apply auth
+- name: Restart influxdb
   ansible.builtin.systemd:
     name: influxdb
     state: restarted
     daemon_reload: true
     enabled: true
   when: influx_configfile is changed
+
+# The role created the user before auth was turned on, which only works on a
+# fresh database: on a host that already has auth enabled the request is
+# rejected with 401 and the play stops there.
+- name: Check whether the configured influxdb user can authenticate
+  register: influx_auth
+  changed_when: false
+  ignore_errors: true
+  community.general.influxdb_query:
+    query: SHOW USERS
+    login_username: "{{ influxdb_username }}"
+    login_password: "{{ influxdb_password }}"
+
+# Auth is off only for the time it takes to create the user, and influxdb
+# listens on localhost during that window.
+- name: Create the influxdb user when the configured one cannot authenticate
+  when: influx_auth is failed
+  block:
+    - name: Generate the influxdb config without auth
+      ansible.builtin.template:
+        src: influxdb.conf.j2
+        dest: /etc/influxdb/influxdb.conf
+      vars:
+        influxdb_auth_enabled: false
+        influxdb_bind_address: "127.0.0.1:8086"
+
+    - name: Restart influxdb without auth
+      ansible.builtin.systemd:
+        name: influxdb
+        state: restarted
+
+    - name: Create the influxdb user
+      community.general.influxdb_user:
+        login_username: "{{ influxdb_username }}"
+        login_password: "{{ influxdb_password }}"
+        user_name: "{{ influxdb_username }}"
+        user_password: "{{ influxdb_password }}"
+        admin: true
+
+    - name: Generate the influxdb config with auth
+      ansible.builtin.template:
+        src: influxdb.conf.j2
+        dest: /etc/influxdb/influxdb.conf
+
+    - name: Restart influxdb with auth
+      ansible.builtin.systemd:
+        name: influxdb
+        state: restarted
 
 - name: Create database using custom credentials
   community.general.influxdb_database:
