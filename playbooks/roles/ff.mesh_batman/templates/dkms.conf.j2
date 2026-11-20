@@ -6,6 +6,13 @@ BUILT_MODULE_NAME=batman-adv
 BUILT_MODULE_LOCATION=net/batman-adv/
 
 
-MAKE="make all"
+# batman-adv's Makefile defaults KERNELPATH to the kernel that is *running*,
+# and DKMS calls this while the old kernel is still up (a distribution upgrade
+# builds for the new kernel from a userland that boots the old one). Without
+# the explicit path, "make all" produces a module for the running kernel and
+# DKMS installs it into the new kernel's tree, where modprobe then refuses it
+# with "Exec format error" - on a supernode that means no batX interface at
+# the next boot.
+MAKE="make KERNELPATH=/lib/modules/${kernelver}/build all"
 CLEAN="make clean"
 AUTOINSTALL="yes"
