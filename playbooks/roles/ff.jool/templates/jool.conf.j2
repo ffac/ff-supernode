@@ -1,0 +1,28 @@
+{
+	"comment": {
+		"description": "Stateful NAT64 for parker node clients, managed by Ansible.",
+		"note": "bib entries are static mappings only; dynamic clients get mapped from pool4 automatically."
+	},
+
+	"instance": "{{ jool_instance }}",
+	"framework": "netfilter",
+
+	"global": {
+		"pool6": "{{ jool_pool6 }}",
+		"logging-debug": false
+	},
+
+	"pool4": [
+{% for proto in ['TCP', 'UDP'] %}
+		{
+			"protocol": "{{ proto }}",
+			"prefix": "{{ jool_pool4_prefix }}",
+			"port range": "{{ jool_port_range }}"
+		},
+{% endfor %}
+		{
+			"protocol": "ICMP",
+			"prefix": "{{ jool_pool4_prefix }}"
+		}
+	]
+}

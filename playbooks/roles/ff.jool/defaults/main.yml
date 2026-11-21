@@ -1,0 +1,41 @@
+---
+# Stateful NAT64 (SIIT+PLAT) via the jool kernel module. One instance,
+# installed from the Debian packages. The role applies /etc/jool/jool.conf
+# with `jool file handle` on every run: that replaces the config of the
+# running instance and keeps its state. A `systemctl restart` is not
+# equivalent - the packaged unit stops the instance with `instance remove`,
+# and every dynamic BIB entry and session dies with it.
+
+jool_instance: nat64
+
+# The well-known SYN64 prefix. The parker nodes hardcode announcing
+# 64:ff9b::/96 to their clients, so this must match them.
+jool_pool6: "64:ff9b::/96"
+
+# Address(es) translated traffic leaves from. Required; for a first test the
+# host's own public IPv4 /32 works when its return path is already routed.
+jool_pool4_prefix: ""
+
+# Ports NAT64 may use on jool_pool4_prefix, "<first>-<last>". Deliberately no
+# default: which range is safe depends on the host's ephemeral range
+# (/proc/sys/net/ipv4/ip_local_port_range) and on what listens where, and the
+# role asserts both. The width is the whole concentrator's flow capacity -
+# one BIB entry per client source port and protocol, held for udp 5 min and
+# tcp 2 h - so it is a per-host decision, not a constant.
+jool_port_range: ""
+
+# Source prefixes allowed to use the NAT64. Jool hooks PRE_ROUTING only and
+# translates whatever is addressed to jool_pool6, so without this list every
+# host that can route to us may reach IPv4 through our address. Empty means no
+# guard is installed at all; the guard is opt-in and is not torn down when the
+# list is emptied later on (that needs `systemctl disable --now jool-guard`
+# plus `ip6tables -t raw -D PREROUTING -d <jool_pool6> -j JOOL_GUARD`).
+jool_source6_allow: []
+
+# Interface the traffic has to arrive on to reach the guard's chain. A source
+# prefix alone proves nothing - anyone can write it into a packet header. On a
+# concentrator this is the wireguard interface: its peers' allowed-ips already
+# decided which source may appear there, so the interface check makes the
+# source trustworthy. Empty leaves the source prefix as the only check, which
+# is all that is left for clients arriving on a bridge or a lab veth.
+jool_source6_interface: ""

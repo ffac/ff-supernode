@@ -1,0 +1,16 @@
+[Unit]
+Description=Restrict which IPv6 sources Jool translates (NAT64 source guard)
+Documentation=https://nicmx.github.io/Jool
+After=network-pre.target
+Before=jool.service
+
+[Service]
+Type=oneshot
+# The logic lives in /usr/local/sbin/jool-guard.sh: it needs rule parsing and
+# loops, which do not survive systemd's own ExecStart quoting and $-expansion.
+# See the script for what the chain looks like and why a failed run leaves it
+# stricter instead of open.
+ExecStart=/usr/local/sbin/jool-guard.sh
+
+[Install]
+WantedBy=multi-user.target

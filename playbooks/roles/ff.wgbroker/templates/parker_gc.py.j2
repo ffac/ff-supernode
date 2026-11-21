@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+"""Delete parker records whose node is gone, freeing the id for reuse.
+
+Runs as user ``auto`` on the broker host. With auto-approval the /config
+endpoint mints routed prefixes to whoever asks, so the GC is the valve that
+keeps unauthenticated spam from permanently eating the pool: a record that
+never handshaked or went silent for long enough is removed and its id
+becomes allocatable again.
+
+Liveness comes from the per-gateway status files the reconcilers publish
+below parker-status/ in the registry. A record is only deleted when no
+gateway has seen a recent handshake: a node that only ever reaches one
+concentrator stays alive on the strength of that one file.
+
+Until parker_gc.dry_run is turned off this only logs.
+"""
+
+import json
+import subprocess
+import sys
+import time
+
+import parker_lib
+
+REPO = {{ wgbroker_parker_repo | tojson }}
+SYNC = {{ 'True' if (wgbroker_parker_repo_remote | default('')) else 'False' }}
+
+# double tojson: json.loads of a string literal, because tojson's
+# true/false/null are not python literals
+CFG = json.loads({{ wgbroker_parker | tojson | tojson }})
+GC = CFG.get("gc", {})
+
+NEVER_HANDSHAKED_DAYS = GC.get("never_handshaked_days", 7)
+SILENT_DAYS = GC.get("silent_days", 90)
+DRY_RUN = GC.get("dry_run", True)
+
+run = subprocess.run
+DAY = 86400
+
+
+def find_dead(records, status, now):
+    today_bucket = int(now) // DAY
+    dead = []
+    for pubkey, record in records.items():
+        bucket = status.get(pubkey)
+        if bucket is None:
+            age = parker_lib.record_age_days(run, REPO, record["path"], now=now)
+            if age is not None and age > NEVER_HANDSHAKED_DAYS:
+                dead.append((record, f"never handshaked, {age:.0f} d old"))
+        elif today_bucket - bucket > SILENT_DAYS:
+            dead.append((record, f"silent since day {bucket}, {today_bucket - bucket} d"))
+    return dead
+
+
+def main():
+    if SYNC:
+        parker_lib.git(run, REPO, "pull", "--ff-only")
+
+    records = parker_lib.load_records(REPO)
+    status = parker_lib.load_status(REPO)
+    dead = find_dead(records, status, time.time())
+
+    if not dead:
+        print(f"parker gc: {len(records)} records, nothing to do")
+        return 0
+
+    for record, reason in dead:
+        print(f"parker gc: {'would delete' if DRY_RUN else 'deleting'} "
+              f"{record['path']} (id {record['id']}): {reason}")
+
+    if DRY_RUN:
+        return 0
+
+    for record, _reason in dead:
+        parker_lib.git(run, REPO, "rm", "--quiet", "--", record["path"])
+    parker_lib.git(
+        run,
+        REPO,
+        "commit",
+        "-m",
+        f"parker gc: remove {len(dead)} dead record(s)",
+    )
+    if SYNC:
+        parker_lib.git(run, REPO, "push")
+    print(f"parker gc: done, {len(dead)} record(s) removed")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
