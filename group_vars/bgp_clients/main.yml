@@ -1,0 +1,14 @@
+---
+# Which files/bird/ layer set this host gets (see ff.backbone).
+bird_profile: bgp-client
+
+client_dns_server_v4: 5.145.135.158
+client_dns_server_v6: 2a00:fe0:43::158
+
+# ffrl prefix
+mesh_prefix: "2a03:2260:3006"
+radv_announce_default: true
+
+#local_vxlan_supernode: 2a00:fe0:43::201
+#remote_vxlan_supernode: 2a00:fe0:43::202
+yanic_central: "true"

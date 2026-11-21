@@ -1,15 +1,27 @@
 ---
+# The bird configuration lives in files/bird/ as verbatim BIRD: what is
+# in git is what bird parses. This role only picks the layers (common +
+# role profile + host directory), copies them together and reloads.
+
+- name: Refuse hosts without a bird profile
+  ansible.builtin.assert:
+    that: bird_profile is defined
+    fail_msg: >-
+      ff.backbone needs bird_profile (backbone, bgp-client or supernode)
+      for {{ inventory_hostname }}.
+
+- name: Remove bird1 leftovers
+  apt:
+    name:
+      - bird
+      - bird1
+      - birdc
+    state: absent
 
 - name: Ensure Bird2 is installed
-  ansible.builtin.apt:
+  apt:
     name: bird2
     update_cache: true
-
-- name: Start Bird
-  ansible.builtin.service:
-    name: bird
-    enabled: true
-    state: started
 
 - name: Ensure Log Directory exists
   ansible.builtin.file:
@@ -19,10 +31,10 @@
     owner: bird
     group: bird
 
-# The config below logs at info level into a single file. Debian ships no
+# The config logs at info level into a single file. Debian ships no
 # logrotate entry for bird, so the file only ever grows - 143 MB after ten
-# weeks on sn03, on a VM whose disk is 7.8 GB. copytruncate keeps bird's open
-# file descriptor usable, no reload needed.
+# weeks on sn03, on a VM whose disk is 7.8 GB. copytruncate keeps bird's
+# open file descriptor usable, no reload needed.
 - name: Install Bird logrotate config
   ansible.builtin.copy:
     dest: /etc/logrotate.d/bird
@@ -42,18 +54,93 @@
           su bird bird
       }
 
-- name: Install Bird Conf
-  register: restartbird
-  ansible.builtin.template:
-    src: bird2.conf.j2
-    dest: /etc/bird/bird.conf
+- name: Ensure config Directory exists
+  ansible.builtin.file:
+    path: /etc/bird/ffac
+    state: directory
+    mode: "0750"
+    owner: bird
+    group: bird
 
+- name: Remove the legacy single-file peerings config
+  ansible.builtin.file:
+    path: /etc/bird/ebgp.conf
+    state: absent
+
+- name: Install bird master config
+  register: bird_master
+  ansible.builtin.copy:
+    src: bird/bird.conf
+    dest: /etc/bird/bird.conf
+    mode: "0640"
+    owner: bird
+    group: bird
+
+- name: Install common bird layers
+  register: bird_common
+  ansible.builtin.copy:
+    src: "bird/common/"
+    dest: /etc/bird/ffac/
+    mode: "0640"
+    owner: bird
+    group: bird
+
+- name: Install role profile bird layers
+  register: bird_profile_files
+  ansible.builtin.copy:
+    src: "bird/{{ bird_profile }}/"
+    dest: /etc/bird/ffac/
+    mode: "0640"
+    owner: bird
+    group: bird
+
+- name: Install host bird layers
+  register: bird_host
+  ansible.builtin.copy:
+    src: "bird/hosts/{{ servername }}/"
+    dest: /etc/bird/ffac/
+    mode: "0640"
+    owner: bird
+    group: bird
+
+# A layer file renamed or dropped from git would otherwise keep matching
+# the include glob on the host — "what is in git is what bird parses".
+- name: Find installed bird layer files
+  ansible.builtin.find:
+    paths: /etc/bird/ffac
+    patterns: "*.conf"
+  register: ffac_installed
+
+- name: Remove bird layer files gone from git
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ ffac_installed.files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  when: (item.path | basename) not in (
+          (lookup('fileglob', role_path ~ '/files/bird/common/*.conf', wantlist=True)
+           + lookup('fileglob', role_path ~ '/files/bird/' ~ bird_profile ~ '/*.conf', wantlist=True)
+           + lookup('fileglob', role_path ~ '/files/bird/hosts/' ~ servername ~ '/*.conf', wantlist=True))
+          | map('basename') | list)
+
+- name: Start Bird
+  service:
+    name: bird
+    enabled: true
+    state: started
+
+# Started first: birdc is a CLI against the running daemon, there is no
+# local-only check mode. The package postinst has usually started bird
+# with its default config already; this guarantees it for the cutover.
 - name: Bird Check
-  ansible.builtin.command: birdc configure check
+  command: birdc configure check
   register: bird_health
   failed_when: bird_health.rc != 0
   changed_when: false
 
 - name: Reload Bird Configuration
-  ansible.builtin.command: birdc configure
-  when: restartbird.changed
+  command: birdc configure
+  when: >-
+    [bird_master, bird_common, bird_profile_files, bird_host]
+    | selectattr('changed') | list | length > 0

@@ -1,0 +1,3 @@
+---
+# Which files/bird/ layer set this host gets (see ff.backbone).
+bird_profile: supernode
