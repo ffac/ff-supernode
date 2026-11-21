@@ -12,7 +12,7 @@
   roles:
     # General
     - { role: ff.influxdb, tags: influxdb, become: true }
-    - { role: ff.yanic, tags: yanic }
+    - { role: ff.yanic, tags: yanic, become: true }
     - { role: ff.grafana, tags: grafana, become: true }
     - { role: ff.certbot, tags: certbot, become: true }
     - { role: ff.nginx, tags: nginx, become: true }

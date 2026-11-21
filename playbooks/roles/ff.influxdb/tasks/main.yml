@@ -1,19 +1,43 @@
 ---
-
-- name: Add repo key
-  ansible.builtin.apt_key:
-    url: https://repos.influxdata.com/influxdata-archive_compat.key
-    state: present
-
-- name: Add influx repo
-  register: influxrepositoryadded
-  ansible.builtin.apt_repository:
-    repo: "deb https://repos.influxdata.com/debian stable main"
-
-- name: Update apt chache to get influxdb packages
+- name: Install python3-debian for deb822_repository
   ansible.builtin.apt:
-    update_cache: "yes"
-  when: influxrepositoryadded is changed
+    name: python3-debian
+    update_cache: true
+    cache_valid_time: 3600
+
+# older versions of this role added the repository as a .list file and imported
+# the key with apt_key, which Debian trixie no longer ships
+- name: Find the one-line InfluxData repository file
+  ansible.builtin.find:
+    paths: /etc/apt/sources.list.d
+    patterns: "*influx*.list"
+  register: influx_old_repository
+
+- name: Remove the one-line InfluxData repository file
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ influx_old_repository.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Add the InfluxData repository
+  register: influxrepositoryadded
+  ansible.builtin.deb822_repository:
+    name: influxdata
+    types: deb
+    uris: https://repos.influxdata.com/debian
+    suites: stable
+    components: main
+    # the compat key this role used before expired in January 2026 and no
+    # longer signs the suite; the archive key is
+    # 24C975CBA61A024EE1B631787C3D57159FC2F927
+    signed_by: https://repos.influxdata.com/influxdata-archive.key
+
+- name: Update apt cache to get influxdb packages
+  ansible.builtin.apt:
+    update_cache: true
+  when: influxrepositoryadded is changed or influx_old_repository.files | length > 0
 
 - name: Install influxdb from repo
   register: influxinstall
@@ -21,13 +45,12 @@
     name: influxdb
     state: latest
 
-- name: Ensure engine directory exists and has correct ownership
-  ansible.builtin.file:
-    state: directory
-    path: "{{ influx_engine_path }}"
-    owner: "influxdb"
-    group: "influxdb"
-    recurse: true
+# influxdb_user and influxdb_database run on the target and import the client
+# library
+- name: Install the InfluxDB Python client
+  ansible.builtin.apt:
+    name: python3-influxdb
+    state: present
 
 # - name: Generate firewall config stanza (ferm)
 #   register: ferm_changed
@@ -36,28 +59,13 @@
 #     dest: /etc/ferm/conf.d/50-influxdb.conf
 #   notify: reload ferm
 
-- name: Restart influxdb2 service
-  ansible.builtin.systemd:
-    name: influxdb
-    state: restarted
-    daemon_reload: true
-    enabled: true
-
-- name: Create ffac user - no auth on first install
-  community.general.influxdb_user:
-    login_username: "{{ influxdb_username }}"
-    login_password: "{{ influxdb_password }}"
-    user_name: "{{ influxdb_username }}"
-    user_password: "{{ influxdb_password }}"
-    admin: true
-
-- name: Generate config file - activate auth
+- name: Generate the influxdb config
   register: influx_configfile
   ansible.builtin.template:
     src: influxdb.conf.j2
     dest: /etc/influxdb/influxdb.conf
 
-- name: Restart influxdb2 service - apply auth
+- name: Restart influxdb
   ansible.builtin.systemd:
     name: influxdb
     state: restarted
@@ -65,10 +73,56 @@
     enabled: true
   when: influx_configfile is changed
 
+# The role created the user before auth was turned on, which only works on a
+# fresh database: on a host that already has auth enabled the request is
+# rejected with 401 and the play stops there.
+- name: Check whether the configured influxdb user can authenticate
+  register: influx_auth
+  changed_when: false
+  ignore_errors: true
+  community.general.influxdb_query:
+    query: SHOW USERS
+    login_username: "{{ influxdb_username }}"
+    login_password: "{{ influxdb_password }}"
+
+# Auth is off only for the time it takes to create the user, and influxdb
+# listens on localhost during that window.
+- name: Create the influxdb user when the configured one cannot authenticate
+  when: influx_auth is failed
+  block:
+    - name: Generate the influxdb config without auth
+      ansible.builtin.template:
+        src: influxdb.conf.j2
+        dest: /etc/influxdb/influxdb.conf
+      vars:
+        influxdb_auth_enabled: false
+        influxdb_bind_address: "127.0.0.1:8086"
+
+    - name: Restart influxdb without auth
+      ansible.builtin.systemd:
+        name: influxdb
+        state: restarted
+
+    - name: Create the influxdb user
+      community.general.influxdb_user:
+        login_username: "{{ influxdb_username }}"
+        login_password: "{{ influxdb_password }}"
+        user_name: "{{ influxdb_username }}"
+        user_password: "{{ influxdb_password }}"
+        admin: true
+
+    - name: Generate the influxdb config with auth
+      ansible.builtin.template:
+        src: influxdb.conf.j2
+        dest: /etc/influxdb/influxdb.conf
+
+    - name: Restart influxdb with auth
+      ansible.builtin.systemd:
+        name: influxdb
+        state: restarted
+
 - name: Create database using custom credentials
   community.general.influxdb_database:
     username: "{{ influxdb_username }}"
     password: "{{ influxdb_password }}"
     database_name: "{{ influxdb_database_name }}"
-    ssl: true
-    validate_certs: true
