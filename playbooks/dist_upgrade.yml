@@ -87,6 +87,29 @@
       ansible.builtin.set_fact:
         debian_upgrade_from: "{{ ansible_facts['distribution_release'] }}"
 
+    # apt 3 (trixie) prints a notice for every deb822 stanza without
+    # Signed-By, and the cloud images ship debian.sources without it. Placed
+    # before the release check, so hosts that already run the target release
+    # get it as well; apt of bookworm reads the field just the same.
+    - name: "Find deb822 source files with a Debian mirror"
+      ansible.builtin.find:
+        paths: "/etc/apt/sources.list.d"
+        patterns: "*.sources"
+        # matched from the start of a line
+        contains: ".*({{ debian_mirror_pattern }})"
+      register: "debian_deb822_sources"
+
+    - name: "Pin the Debian stanzas to the archive keyring"
+      ansible.builtin.replace:
+        path: "{{ item.path }}"
+        # one stanza (a block between blank lines) with a Debian mirror in
+        # "URIs:" and no Signed-By line yet; the key goes at its end
+        regexp: '(?:\A|(?<=\n\n))((?:(?!Signed-By:)[^\n]+\n)*URIs:[^\n]*(?:{{ debian_mirror_pattern }})[^\n]*\n(?:(?!Signed-By:)[^\n]+\n)*)(?=\n|\Z)'
+        replace: "\\1Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg\n"
+      loop: "{{ debian_deb822_sources.files }}"
+      loop_control:
+        label: "{{ item.path }}"
+
     - name: "Stop gracefully when the host already runs the target release"
       when: "debian_upgrade_from == debian_upgrade_release"
       block:
